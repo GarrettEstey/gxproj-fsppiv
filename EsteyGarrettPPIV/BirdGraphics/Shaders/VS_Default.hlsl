@@ -1,4 +1,18 @@
-float4 main( float4 pos : POSITION ) : SV_POSITION
+struct VS_INPUT
 {
-	return pos;
+	float4 pos : POSITION;
+	float3 norm : NORMAL;
+	float2 tex : TEXCOORD;
+};
+
+struct PS_INPUT
+{
+	float4 pos : SV_POSITION;
+	float3 norm : NORMAL;
+	float2 tex : TEXCOORD;
+};
+
+PS_INPUT main( VS_INPUT input )
+{
+	return input;
 }

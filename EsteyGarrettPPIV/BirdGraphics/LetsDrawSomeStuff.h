@@ -31,15 +31,17 @@ class LetsDrawSomeStuff
 	// variables here
 	GW::GRAPHICS::GDirectX11Surface* mySurface = nullptr;
 	// Gettting these handles from GDirectX11Surface will increase their internal refrence counts, be sure to "Release()" them when done!
-	ID3D11Device*			myDevice = nullptr;
-	IDXGISwapChain*			mySwapChain = nullptr;
-	ID3D11DeviceContext*	myContext = nullptr;
+	ID3D11Device*						myDevice = nullptr;
+	IDXGISwapChain*						mySwapChain = nullptr;
+	ID3D11DeviceContext*				myContext = nullptr;
 
 	// TODO: Add your own D3D11 variables here (be sure to "Release()" them when done!)
-	ID3D11Buffer*			myVertexBuffer = nullptr;
-	ID3D11InputLayout*		myVertexLayout = nullptr;
-	ID3D11VertexShader*		myVertexShader = nullptr;
-	ID3D11PixelShader*		myPixelShader = nullptr;
+	ID3D11Buffer*						myVertexBuffer = nullptr;
+	ID3D11InputLayout*					myVertexLayout = nullptr;
+	ID3D11VertexShader*					myVertexShader = nullptr;
+	ID3D11PixelShader*					myPixelShader = nullptr;
+	ID3D11ShaderResourceView*           myTextureRV = nullptr;
+	ID3D11SamplerState*                 mySamplerLinear = nullptr;
 
 public:
 	// Init
@@ -71,9 +73,9 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 			// Set up input buffer. This is where vertex data is stored
 			Vertex vertices[] =
 			{
-				{ XMFLOAT3(0.2f, 0.35f, 0.0f), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 0.0f) },
+				{ XMFLOAT3(0.5f, 0.5f, 0.0f), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(1.0f, 0.0f) },
 				{ XMFLOAT3(0.5f, -0.5f, 0.0f), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 0.0f) },
-				{ XMFLOAT3(-0.5f, 0.5f, 0.0f), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 0.0f) },
+				{ XMFLOAT3(-0.5f, 0.5f, 0.0f), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 1.0f) },
 			};
 			// This creates an empty buffer description object
 			D3D11_BUFFER_DESC bd = {};
@@ -132,6 +134,27 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 
 			#pragma endregion
 
+			#pragma region Sample State
+
+			// Create the sample state
+			D3D11_SAMPLER_DESC sampDesc = {};
+			sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+			sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+			sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+			sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+			sampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+			sampDesc.MinLOD = 0;
+			sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
+			hr = myDevice->CreateSamplerState(&sampDesc, &mySamplerLinear);
+
+			#pragma endregion
+
+			#pragma region Shader Resource View
+
+
+
+			#pragma endregion
+
 			// Set primitive topology
 			myContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
@@ -148,14 +171,18 @@ LetsDrawSomeStuff::~LetsDrawSomeStuff()
 	myContext->Release();
 
 	// TODO: "Release()" more stuff here!
-	if(myVertexShader)
-	myVertexShader->Release();
-	if(myPixelShader)
-	myPixelShader->Release();
-	if(myVertexLayout)
-	myVertexLayout->Release();
+	if (myVertexShader)
+		myVertexShader->Release();
+	if (myPixelShader)
+		myPixelShader->Release();
+	if (myVertexLayout)
+		myVertexLayout->Release();
 	if (myVertexBuffer)
-	myVertexBuffer->Release();
+		myVertexBuffer->Release();
+	if (myTextureRV)
+		myTextureRV->Release();
+	if (mySamplerLinear)
+		mySamplerLinear->Release();
 
 	if (mySurface) // Free Gateware Interface
 	{
