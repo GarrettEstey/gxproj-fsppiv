@@ -71,9 +71,9 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 			// Set up input buffer. This is where vertex data is stored
 			Vertex vertices[] =
 			{
-				{ XMFLOAT3(0.2f, 0.35f, 0.5f), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 0.0f) },
-				{ XMFLOAT3(0.5f, -0.5f, 0.5f), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 0.0f) },
-				{ XMFLOAT3(-0.5f, 0.5f, 0.5f), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 0.0f) },
+				{ XMFLOAT3(0.2f, 0.35f, 0.0f), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 0.0f) },
+				{ XMFLOAT3(0.5f, -0.5f, 0.0f), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 0.0f) },
+				{ XMFLOAT3(-0.5f, 0.5f, 0.0f), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 0.0f) },
 			};
 			// This creates an empty buffer description object
 			D3D11_BUFFER_DESC bd = {};
@@ -128,6 +128,7 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 			hr = myDevice->CreateInputLayout(inputElementDesc, elements, VS_Default, sizeof(VS_Default), &myVertexLayout);
 
 			// Set layout in the context
+			myContext->IASetInputLayout(myVertexLayout);
 
 			#pragma endregion
 
@@ -183,10 +184,14 @@ void LetsDrawSomeStuff::Render()
 			myContext->OMSetRenderTargets(1, targets, myDepthStencilView);
 
 			// Clear the screen to green
-			const float d_green[] = { 0.498f, 0.729f, 0, 1 }; // "DirectX Green"
-			myContext->ClearRenderTargetView(myRenderTargetView, d_green);
+			const float clearColor[] = { 0.3f, 0.3f, 0.3f, 1 };
+			myContext->ClearRenderTargetView(myRenderTargetView, clearColor);
 			
 			// TODO: Set your shaders, Update & Set your constant buffers, Attatch your vertex & index buffers, Set your InputLayout & Topology & Draw!
+			myContext->VSSetShader(myVertexShader, nullptr, 0);
+			myContext->PSSetShader(myPixelShader, nullptr, 0);
+			
+			myContext->Draw(3, 0);
 
 			// Present Backbuffer using Swapchain object
 			// Framerate is currently unlocked, we suggest "MSI Afterburner" to track your current FPS and memory usage.
