@@ -155,9 +155,6 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 
 			#pragma endregion
 
-			// Set primitive topology
-			myContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
 		}
 	}
 }
@@ -220,6 +217,9 @@ void LetsDrawSomeStuff::Render()
 			myContext->VSSetShader(myVertexShader, nullptr, 0);
 			myContext->PSSetShader(myPixelShader, nullptr, 0);
 			
+			// Set primitive topology
+			myContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
 			myContext->Draw(3, 0);
 
 			// Present Backbuffer using Swapchain object
