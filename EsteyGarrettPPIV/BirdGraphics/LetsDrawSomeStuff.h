@@ -20,35 +20,37 @@
 using namespace DirectX;
 using namespace std;
 
-XMMATRIX							mWorld;
-XMMATRIX						    mView;
-XMMATRIX						    mProjection;
-UINT indicesCount;
+// Structs
+struct Vertex
+{
+	XMFLOAT3 pos;
+	XMFLOAT3 normal;
+	XMFLOAT2 tex;
+};
+
+struct Mesh
+{
+	vector<Vertex> vertexList;
+	vector<int> indicesList;
+	XMMATRIX mWorld;
+};
+
+struct ConstantBuffer
+{
+	XMMATRIX mWorld;
+	XMMATRIX mView;
+	XMMATRIX mProjection;
+};
+
+// Global variables
+XMMATRIX	myViewMatrix;
+XMMATRIX	myProjectionMatrix;
+
+Mesh		myMesh1;
 
 // Simple Container class to make life easier/cleaner
 class LetsDrawSomeStuff
 {
-	// Structs
-	struct Vertex
-	{
-		XMFLOAT3 pos;
-		XMFLOAT3 normal;
-		XMFLOAT2 tex;
-	};
-
-	struct Mesh
-	{
-		vector<Vertex> vertexList;
-		vector<int> indicesList;
-	};
-
-	struct ConstantBuffer
-	{
-		XMMATRIX mWorld;
-		XMMATRIX mView;
-		XMMATRIX mProjection;
-	};
-
 	// variables here
 	GW::GRAPHICS::GDirectX11Surface* mySurface = nullptr;
 	// Gettting these handles from GDirectX11Surface will increase their internal refrence counts, be sure to "Release()" them when done!
@@ -93,22 +95,10 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 			// TODO: Create new DirectX stuff here! (Buffers, Shaders, Layouts, Views, Textures, etc...)
 			HRESULT hr = S_OK;
 
-			Mesh myMesh;
-			myMesh.vertexList = 
-			{
-				{ XMFLOAT3( -0.5f, -0.5f, 0.5f ), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2( 0.f, 1.f ) },
-				{ XMFLOAT3(  0.5f, -0.5f, 0.5f ), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2( 1.f, 1.f ) },
-				{ XMFLOAT3(  0.5f,  0.5f, 0.5f ), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2( 1.f, 0.f ) },
-				{ XMFLOAT3( -0.5f,  0.5f, 0.5f ), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2( 0.f, 0.f ) }
-			};
-			myMesh.indicesList =
-			{
-				3,1,0,
-				2,1,3,
-			};
-
-			LoadMesh("./Assets/Meshes/fan.mesh", myMesh);
-			indicesCount = myMesh.indicesList.size();
+			// Load a mesh
+			LoadMesh("./Assets/Meshes/fan.mesh", myMesh1);
+			// Initialize the world matrix for this mesh
+			myMesh1.mWorld = XMMatrixIdentity();
 
 			#pragma region Vertex Buffer
 
@@ -123,11 +113,11 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 			// CPUAccessFlags inform what kind of acess the CPU has to this buffer. None. 0. This is immutable
 			bd.CPUAccessFlags = 0;
 			// ByteWidth is just informing how large the buffer is
-			bd.ByteWidth = sizeof(Vertex) * myMesh.vertexList.size();
+			bd.ByteWidth = sizeof(Vertex) * myMesh1.vertexList.size();
 
 			// Create the buffer on the device
 			D3D11_SUBRESOURCE_DATA InitData = {};
-			InitData.pSysMem = myMesh.vertexList.data();
+			InitData.pSysMem = myMesh1.vertexList.data();
 			hr = myDevice->CreateBuffer(&bd, &InitData, &myVertexBuffer);
 
 			// Set vertex buffer in the context
@@ -194,10 +184,10 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 
 			// Create index buffer
 			bd.Usage = D3D11_USAGE_DEFAULT;
-			bd.ByteWidth = sizeof(int) * myMesh.indicesList.size();        // 36 vertices needed for 12 triangles in a triangle list
+			bd.ByteWidth = sizeof(int) * myMesh1.indicesList.size();        // 36 vertices needed for 12 triangles in a triangle list
 			bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
 			bd.CPUAccessFlags = 0;
-			InitData.pSysMem = myMesh.indicesList.data();
+			InitData.pSysMem = myMesh1.indicesList.data();
 			hr = myDevice->CreateBuffer(&bd, &InitData, &myIndexBuffer);
 
 			// Set index buffer
@@ -218,21 +208,18 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 
 			#pragma region Matrices
 
-			// Initialize the world matrices
-			mWorld = XMMatrixIdentity();
-
 			// Initialize the view matrix
 			XMVECTOR Eye = XMVectorSet(0.0f, 4.0f, -10.0f, 0.0f);
 			XMVECTOR At = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 			XMVECTOR Up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
-			mView = XMMatrixLookAtLH(Eye, At, Up);
+			myViewMatrix = XMMatrixLookAtLH(Eye, At, Up);
 
 			// Initialize the projection matrix
 			UINT height;
 			UINT width;
 			attatchPoint->GetClientHeight(height);
 			attatchPoint->GetClientWidth(width);
-			mProjection = XMMatrixPerspectiveFovLH(XM_PIDIV4, width / (FLOAT)height, 0.01f, 100.0f);
+			myProjectionMatrix = XMMatrixPerspectiveFovLH(XM_PIDIV4, width / (FLOAT)height, 0.01f, 100.0f);
 
 			#pragma endregion
 
@@ -309,16 +296,16 @@ void LetsDrawSomeStuff::Render()
 			t = (timeCur - timeStart) / 1000.0f;
 
 			// Rotate cube around the origin
-			mWorld = XMMatrixRotationY(t);
+			myMesh1.mWorld = XMMatrixRotationY(t);
 
 			// Set primitive topology
 			myContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-			// Update matrix variables and lighting variables
+			// Update constant buffer
 			ConstantBuffer cb1;
-			cb1.mWorld = XMMatrixTranspose(mWorld);
-			cb1.mView = XMMatrixTranspose(mView);
-			cb1.mProjection = XMMatrixTranspose(mProjection);
+			cb1.mWorld = XMMatrixTranspose(myMesh1.mWorld);
+			cb1.mView = XMMatrixTranspose(myViewMatrix);
+			cb1.mProjection = XMMatrixTranspose(myProjectionMatrix);
 			myContext->UpdateSubresource(myConstantBuffer, 0, nullptr, &cb1, 0, 0);
 
 			// Setup to render normal object
@@ -330,7 +317,7 @@ void LetsDrawSomeStuff::Render()
 			myContext->PSSetSamplers(0, 1, &mySamplerLinear);
 			
 			// Draw normal object
-			myContext->DrawIndexed(indicesCount, 0, 0);
+			myContext->DrawIndexed((UINT)myMesh1.indicesList.size(), 0, 0);
 
 			// Present Backbuffer using Swapchain object
 			// Framerate is currently unlocked, we suggest "MSI Afterburner" to track your current FPS and memory usage.
