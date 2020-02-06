@@ -12,12 +12,18 @@
 #include <d3d11.h>
 #include <DirectXMath.h>
 #include <vector>
+#include <fstream>
 #include "DDSTextureLoader.h"
 #include "VS_Default.csh"
 #include "PS_Default.csh"
 
 using namespace DirectX;
 using namespace std;
+
+XMMATRIX							mWorld;
+XMMATRIX						    mView;
+XMMATRIX						    mProjection;
+UINT indicesCount;
 
 // Simple Container class to make life easier/cleaner
 class LetsDrawSomeStuff
@@ -34,6 +40,13 @@ class LetsDrawSomeStuff
 	{
 		vector<Vertex> vertexList;
 		vector<int> indicesList;
+	};
+
+	struct ConstantBuffer
+	{
+		XMMATRIX mWorld;
+		XMMATRIX mView;
+		XMMATRIX mProjection;
 	};
 
 	// variables here
@@ -60,6 +73,8 @@ public:
 	~LetsDrawSomeStuff();
 	// Draw
 	void Render();
+	// Load mesh
+	void LoadMesh(const char* meshFileName, Mesh& mesh);
 };
 
 // Init
@@ -91,6 +106,9 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 				3,1,0,
 				2,1,3,
 			};
+
+			LoadMesh("./Assets/Meshes/fan.mesh", myMesh);
+			indicesCount = myMesh.indicesList.size();
 
 			#pragma region Vertex Buffer
 
@@ -168,7 +186,7 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 
 			#pragma region Shader Resource View
 
-			hr = CreateDDSTextureFromFile(myDevice, L"./Assets/Textures/Crate.dds", nullptr, &myTextureRV);
+			hr = CreateDDSTextureFromFile(myDevice, L"./Assets/Textures/fan.dds", nullptr, &myTextureRV);
 
 			#pragma endregion
 
@@ -184,6 +202,37 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 
 			// Set index buffer
 			myContext->IASetIndexBuffer(myIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+
+			#pragma endregion
+
+			#pragma region Constant Buffer
+
+			// Create the constant buffer
+			bd.Usage = D3D11_USAGE_DEFAULT;
+			bd.ByteWidth = sizeof(ConstantBuffer);
+			bd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+			bd.CPUAccessFlags = 0;
+			hr = myDevice->CreateBuffer(&bd, nullptr, &myConstantBuffer);
+
+			#pragma endregion
+
+			#pragma region Matrices
+
+			// Initialize the world matrices
+			mWorld = XMMatrixIdentity();
+
+			// Initialize the view matrix
+			XMVECTOR Eye = XMVectorSet(0.0f, 4.0f, -10.0f, 0.0f);
+			XMVECTOR At = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+			XMVECTOR Up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+			mView = XMMatrixLookAtLH(Eye, At, Up);
+
+			// Initialize the projection matrix
+			UINT height;
+			UINT width;
+			attatchPoint->GetClientHeight(height);
+			attatchPoint->GetClientWidth(width);
+			mProjection = XMMatrixPerspectiveFovLH(XM_PIDIV4, width / (FLOAT)height, 0.01f, 100.0f);
 
 			#pragma endregion
 
@@ -250,15 +299,38 @@ void LetsDrawSomeStuff::Render()
 			myContext->ClearRenderTargetView(myRenderTargetView, clearColor);
 			
 			// TODO: Set your shaders, Update & Set your constant buffers, Attatch your vertex & index buffers, Set your InputLayout & Topology & Draw!
-			myContext->VSSetShader(myVertexShader, nullptr, 0);
-			myContext->PSSetShader(myPixelShader, nullptr, 0);
-			myContext->PSSetShaderResources(0, 1, &myTextureRV);
-			myContext->PSSetSamplers(0, 1, &mySamplerLinear);
-			
+
+			// Update our time
+			static float t = 0.0f;
+			static ULONGLONG timeStart = 0;
+			ULONGLONG timeCur = GetTickCount64();
+			if (timeStart == 0)
+				timeStart = timeCur;
+			t = (timeCur - timeStart) / 1000.0f;
+
+			// Rotate cube around the origin
+			mWorld = XMMatrixRotationY(t);
+
 			// Set primitive topology
 			myContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-			myContext->DrawIndexed(6, 0, 0);
+			// Update matrix variables and lighting variables
+			ConstantBuffer cb1;
+			cb1.mWorld = XMMatrixTranspose(mWorld);
+			cb1.mView = XMMatrixTranspose(mView);
+			cb1.mProjection = XMMatrixTranspose(mProjection);
+			myContext->UpdateSubresource(myConstantBuffer, 0, nullptr, &cb1, 0, 0);
+
+			// Setup to render normal object
+			myContext->VSSetShader(myVertexShader, nullptr, 0);
+			myContext->VSSetConstantBuffers(0, 1, &myConstantBuffer);
+			myContext->PSSetShader(myPixelShader, nullptr, 0);
+			myContext->PSSetConstantBuffers(0, 1, &myConstantBuffer);
+			myContext->PSSetShaderResources(0, 1, &myTextureRV);
+			myContext->PSSetSamplers(0, 1, &mySamplerLinear);
+			
+			// Draw normal object
+			myContext->DrawIndexed(indicesCount, 0, 0);
 
 			// Present Backbuffer using Swapchain object
 			// Framerate is currently unlocked, we suggest "MSI Afterburner" to track your current FPS and memory usage.
@@ -268,4 +340,45 @@ void LetsDrawSomeStuff::Render()
 			myRenderTargetView->Release();
 		}
 	}
+}
+
+void LetsDrawSomeStuff::LoadMesh(const char* meshFileName, Mesh& mesh)
+{
+	std::fstream file{ meshFileName, std::ios_base::in | std::ios_base::binary };
+
+	assert(file.is_open());
+
+	uint32_t player_index_count;
+	file.read((char*)&player_index_count, sizeof(uint32_t));
+
+	mesh.indicesList.resize(player_index_count);
+
+	file.read((char*)mesh.indicesList.data(), sizeof(uint32_t) * player_index_count);
+
+	uint32_t player_vertex_count;
+	file.read((char*)&player_vertex_count, sizeof(uint32_t));
+
+	mesh.vertexList.resize(player_vertex_count);
+
+	file.read((char*)mesh.vertexList.data(), sizeof(Vertex) * player_vertex_count);
+
+	// Example mesh conditioning if needed - this flips handedness
+	for (auto& v : mesh.vertexList)
+	{
+		v.pos.x = -v.pos.x;
+		v.normal.x = -v.normal.x;
+		v.tex.y = 1.0f - v.tex.y;
+	}
+
+	int tri_count = (int)(mesh.indicesList.size() / 3);
+
+	for (int i = 0; i < tri_count; ++i)
+	{
+		int* tri = mesh.indicesList.data() + i * 3;
+
+		int temp = tri[0];
+		tri[0] = tri[2];
+		tri[2] = temp;
+	}
+	file.close();
 }
