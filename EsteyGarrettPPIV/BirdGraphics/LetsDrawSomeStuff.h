@@ -11,11 +11,12 @@
 // Include DirectX11 for interface access
 #include <d3d11.h>
 #include <DirectXMath.h>
-#include <d3dcompiler.h>
+#include <vector>
 #include "VS_Default.csh"
 #include "PS_Default.csh"
 
 using namespace DirectX;
+using namespace std;
 
 // Simple Container class to make life easier/cleaner
 class LetsDrawSomeStuff
@@ -28,6 +29,12 @@ class LetsDrawSomeStuff
 		XMFLOAT2 tex;
 	};
 
+	struct Mesh
+	{
+		vector<Vertex> vertexList;
+		vector<int> indicesList;
+	};
+
 	// variables here
 	GW::GRAPHICS::GDirectX11Surface* mySurface = nullptr;
 	// Gettting these handles from GDirectX11Surface will increase their internal refrence counts, be sure to "Release()" them when done!
@@ -37,6 +44,8 @@ class LetsDrawSomeStuff
 
 	// TODO: Add your own D3D11 variables here (be sure to "Release()" them when done!)
 	ID3D11Buffer*						myVertexBuffer = nullptr;
+	ID3D11Buffer*						myIndexBuffer = nullptr;
+	ID3D11Buffer*					    myConstantBuffer = nullptr;
 	ID3D11InputLayout*					myVertexLayout = nullptr;
 	ID3D11VertexShader*					myVertexShader = nullptr;
 	ID3D11PixelShader*					myPixelShader = nullptr;
@@ -68,15 +77,22 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 			// TODO: Create new DirectX stuff here! (Buffers, Shaders, Layouts, Views, Textures, etc...)
 			HRESULT hr = S_OK;
 
-			#pragma region Input Buffer
-
-			// Set up input buffer. This is where vertex data is stored
-			Vertex vertices[] =
+			Mesh myMesh;
+			myMesh.vertexList = 
 			{
-				{ XMFLOAT3(0.5f, 0.5f, 0.0f), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(1.0f, 0.0f) },
-				{ XMFLOAT3(0.5f, -0.5f, 0.0f), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 0.0f) },
-				{ XMFLOAT3(-0.5f, 0.5f, 0.0f), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 1.0f) },
+				{ XMFLOAT3( -0.5f, -0.5f, 0.5f ), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2( 0.f, 1.f ) },
+				{ XMFLOAT3(  0.5f, -0.5f, 0.5f ), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2( 1.f, 1.f ) },
+				{ XMFLOAT3(  0.5f,  0.5f, 0.5f ), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2( 1.f, 0.f ) },
+				{ XMFLOAT3( -0.5f,  0.5f, 0.5f ), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2( 0.f, 0.f ) }
 			};
+			myMesh.indicesList =
+			{
+				3,1,0,
+				2,1,3,
+			};
+
+			#pragma region Vertex Buffer
+
 			// This creates an empty buffer description object
 			D3D11_BUFFER_DESC bd = {};
 			// The usage flag informs how the data will be used. IMMUTABLE means that this is a constant, never changing buffer
@@ -88,11 +104,11 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 			// CPUAccessFlags inform what kind of acess the CPU has to this buffer. None. 0. This is immutable
 			bd.CPUAccessFlags = 0;
 			// ByteWidth is just informing how large the buffer is
-			bd.ByteWidth = sizeof(Vertex) * 3;
+			bd.ByteWidth = sizeof(Vertex) * myMesh.vertexList.size();
 
 			// Create the buffer on the device
 			D3D11_SUBRESOURCE_DATA InitData = {};
-			InitData.pSysMem = vertices;
+			InitData.pSysMem = myMesh.vertexList.data();
 			hr = myDevice->CreateBuffer(&bd, &InitData, &myVertexBuffer);
 
 			// Set vertex buffer in the context
@@ -155,6 +171,21 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 
 			#pragma endregion
 
+			#pragma region Index Buffer
+
+			// Create index buffer
+			bd.Usage = D3D11_USAGE_DEFAULT;
+			bd.ByteWidth = sizeof(int) * myMesh.indicesList.size();        // 36 vertices needed for 12 triangles in a triangle list
+			bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
+			bd.CPUAccessFlags = 0;
+			InitData.pSysMem = myMesh.indicesList.data();
+			hr = myDevice->CreateBuffer(&bd, &InitData, &myIndexBuffer);
+
+			// Set index buffer
+			myContext->IASetIndexBuffer(myIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+
+			#pragma endregion
+
 		}
 	}
 }
@@ -180,6 +211,10 @@ LetsDrawSomeStuff::~LetsDrawSomeStuff()
 		myTextureRV->Release();
 	if (mySamplerLinear)
 		mySamplerLinear->Release();
+	if (myIndexBuffer)
+		myIndexBuffer->Release();
+	if (myConstantBuffer)
+		myConstantBuffer->Release();
 
 	if (mySurface) // Free Gateware Interface
 	{
@@ -220,7 +255,7 @@ void LetsDrawSomeStuff::Render()
 			// Set primitive topology
 			myContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-			myContext->Draw(3, 0);
+			myContext->DrawIndexed(6, 0, 0);
 
 			// Present Backbuffer using Swapchain object
 			// Framerate is currently unlocked, we suggest "MSI Afterburner" to track your current FPS and memory usage.
