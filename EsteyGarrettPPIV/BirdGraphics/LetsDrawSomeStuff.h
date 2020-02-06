@@ -12,6 +12,7 @@
 #include <d3d11.h>
 #include <DirectXMath.h>
 #include <vector>
+#include "DDSTextureLoader.h"
 #include "VS_Default.csh"
 #include "PS_Default.csh"
 
@@ -167,7 +168,7 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 
 			#pragma region Shader Resource View
 
-
+			hr = CreateDDSTextureFromFile(myDevice, L"./Assets/Textures/Crate.dds", nullptr, &myTextureRV);
 
 			#pragma endregion
 
@@ -251,6 +252,8 @@ void LetsDrawSomeStuff::Render()
 			// TODO: Set your shaders, Update & Set your constant buffers, Attatch your vertex & index buffers, Set your InputLayout & Topology & Draw!
 			myContext->VSSetShader(myVertexShader, nullptr, 0);
 			myContext->PSSetShader(myPixelShader, nullptr, 0);
+			myContext->PSSetShaderResources(0, 1, &myTextureRV);
+			myContext->PSSetSamplers(0, 1, &mySamplerLinear);
 			
 			// Set primitive topology
 			myContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
