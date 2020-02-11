@@ -14,8 +14,10 @@
 #include <vector>
 #include <fstream>
 #include "DDSTextureLoader.h"
+// Shader includes
 #include "VS_Default.csh"
 #include "PS_Default.csh"
+#include "PS_SolidColor.csh"
 
 using namespace DirectX;
 using namespace std;
@@ -63,11 +65,13 @@ class LetsDrawSomeStuff
 
 	// TODO: Add your own D3D11 variables here (be sure to "Release()" them when done!)
 	ID3D11Buffer*						myVertexBuffer = nullptr;
+	ID3D11Buffer*						gridVertexBuffer = nullptr;
 	ID3D11Buffer*						myIndexBuffer = nullptr;
 	ID3D11Buffer*					    myConstantBuffer = nullptr;
 	ID3D11InputLayout*					myVertexLayout = nullptr;
 	ID3D11VertexShader*					myVertexShader = nullptr;
-	ID3D11PixelShader*					myPixelShader = nullptr;
+	ID3D11PixelShader*					psDefault = nullptr;
+	ID3D11PixelShader*					psSolidColor = nullptr;
 	ID3D11ShaderResourceView*           myTextureRV = nullptr;
 	ID3D11SamplerState*                 mySamplerLinear = nullptr;
 
@@ -107,106 +111,128 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 
 			#pragma endregion
 
-			#pragma region gridMesh Creation
+			// gridMesh Creation
+			{
+				// Initialize the world matrix for this mesh
+				gridMesh.mWorld = XMMatrixIdentity();
 
-			// Establish constant grid points
-			int index = 0;
-			for (float x = -0.5f; x <= 0.50f; x += 0.10f)
-			{
-				gridMesh.vertexList.push_back({ XMFLOAT3(x, 0.0f, -0.5f), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 0.0f) });
-				++index;
-			}
-			for (float x = -0.5f; x <= 0.50f; x += 0.10f)
-			{
-				gridMesh.vertexList.push_back({ XMFLOAT3(x, 0, 0.5f), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 0.0f) });
-				++index;
-			}
-			for (float z = -0.5f; z <= 0.5f; z += 0.10f)
-			{
-				gridMesh.vertexList.push_back({ XMFLOAT3(-0.5f, 0.0f, z), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 0.0f) });
-				++index;
-			}
-			for (float z = -0.50f; z <= 0.5f; z += 0.10f)
-			{
-				gridMesh.vertexList.push_back({ XMFLOAT3(0.5f, 0.0f, z), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 0.0f) });
-				++index;
+				// Establish constant grid points
+				float gridScale = 1.0f;
+				for (float x = -25.0f; x <= 25.0f; x += 1.0f)
+				{
+					gridMesh.vertexList.push_back({ XMFLOAT3(x * gridScale, 0.0f, -25.0f * gridScale), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 0.0f) });
+					gridMesh.vertexList.push_back({ XMFLOAT3(x * gridScale, 0.0f, 25.0f * gridScale), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 0.0f) });
+				}
+				for (float z = -25.0f; z <= 25.0f; z += 1.0f)
+				{
+					gridMesh.vertexList.push_back({ XMFLOAT3(-25.0f * gridScale, 0.0f, z * gridScale), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 0.0f) });
+					gridMesh.vertexList.push_back({ XMFLOAT3(25.0f * gridScale, 0.0f, z * gridScale), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 0.0f) });
+				}
 			}
 
-			#pragma endregion
+			// myMesh1 Buffers
+			{
+				// Vertex Buffer
 
-			#pragma region Vertex Buffer
+				// This creates an empty buffer description object
+				D3D11_BUFFER_DESC bd = {};
+				// The usage flag informs how the data will be used. IMMUTABLE means that this is a constant, never changing buffer
+				// You can also use DEFAULT, which allows the GPU to alter this data, but not the CPU
+				// There is also DYNAMIC, meaning it can be changed at any time by the CPU or GPU
+				bd.Usage = D3D11_USAGE_IMMUTABLE;
+				// The bindFlags inform what the buffer will be used to store. In this case, verts
+				bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+				// CPUAccessFlags inform what kind of acess the CPU has to this buffer. None. 0. This is immutable
+				bd.CPUAccessFlags = 0;
+				// ByteWidth is just informing how large the buffer is
+				bd.ByteWidth = sizeof(Vertex) * myMesh1.vertexList.size();
 
-			// This creates an empty buffer description object
-			D3D11_BUFFER_DESC bd = {};
-			// The usage flag informs how the data will be used. IMMUTABLE means that this is a constant, never changing buffer
-			// You can also use DEFAULT, which allows the GPU to alter this data, but not the CPU
-			// There is also DYNAMIC, meaning it can be changed at any time by the CPU or GPU
-			bd.Usage = D3D11_USAGE_IMMUTABLE;
-			// The bindFlags inform what the buffer will be used to store. In this case, verts
-			bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-			// CPUAccessFlags inform what kind of acess the CPU has to this buffer. None. 0. This is immutable
-			bd.CPUAccessFlags = 0;
-			// ByteWidth is just informing how large the buffer is
-			bd.ByteWidth = sizeof(Vertex) * myMesh1.vertexList.size();
+				// Create the buffer on the device
+				D3D11_SUBRESOURCE_DATA InitData = {};
+				InitData.pSysMem = myMesh1.vertexList.data();
+				hr = myDevice->CreateBuffer(&bd, &InitData, &myVertexBuffer);
 
-			// Create the buffer on the device
-			D3D11_SUBRESOURCE_DATA InitData = {};
-			InitData.pSysMem = myMesh1.vertexList.data();
-			hr = myDevice->CreateBuffer(&bd, &InitData, &myVertexBuffer);
 
-			// Set vertex buffer in the context
-			UINT stride = sizeof(Vertex);
-			UINT offset = 0;
-			myContext->IASetVertexBuffers(0, 1, &myVertexBuffer, &stride, &offset);
+				// Index Buffer
 
-			#pragma endregion
+				// Create index buffer
+				bd.Usage = D3D11_USAGE_DEFAULT;
+				bd.ByteWidth = sizeof(int) * myMesh1.indicesList.size();        // 36 vertices needed for 12 triangles in a triangle list
+				bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
+				bd.CPUAccessFlags = 0;
+				InitData.pSysMem = myMesh1.indicesList.data();
+				hr = myDevice->CreateBuffer(&bd, &InitData, &myIndexBuffer);
+			}
 
-			#pragma region Vertex Shader
+			// gridMesh Buffers
+			{
+
+				// This creates an empty buffer description object
+				D3D11_BUFFER_DESC bd = {};
+				// The usage flag informs how the data will be used. IMMUTABLE means that this is a constant, never changing buffer
+				// You can also use DEFAULT, which allows the GPU to alter this data, but not the CPU
+				// There is also DYNAMIC, meaning it can be changed at any time by the CPU or GPU
+				bd.Usage = D3D11_USAGE_IMMUTABLE;
+				// The bindFlags inform what the buffer will be used to store. In this case, verts
+				bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+				// CPUAccessFlags inform what kind of acess the CPU has to this buffer. None. 0. This is immutable
+				bd.CPUAccessFlags = 0;
+				// ByteWidth is just informing how large the buffer is
+				bd.ByteWidth = sizeof(Vertex) * gridMesh.vertexList.size();
+
+				// Create the buffer on the device
+				D3D11_SUBRESOURCE_DATA InitData = {};
+				InitData.pSysMem = gridMesh.vertexList.data();
+				hr = myDevice->CreateBuffer(&bd, &InitData, &gridVertexBuffer);
+
+			}
+
+
+			#pragma region Vertex Shaders
 
 			myDevice->CreateVertexShader(VS_Default, sizeof(VS_Default), nullptr, &myVertexShader);
 
 			#pragma endregion
 
-			#pragma region Pixel Shader
+			#pragma region Pixel Shaders
 
-			myDevice->CreatePixelShader(PS_Default, sizeof(PS_Default), nullptr, &myPixelShader);
+			myDevice->CreatePixelShader(PS_Default, sizeof(PS_Default), nullptr, &psDefault);
+			myDevice->CreatePixelShader(PS_SolidColor, sizeof(PS_SolidColor), nullptr, &psSolidColor);
 
 			#pragma endregion
 
-			#pragma region Input Layout
-
-			// Create the input layout
-			const D3D11_INPUT_ELEMENT_DESC inputElementDesc[] =
+			// Input Layout
 			{
-				{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-				{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-				{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 }
-			};
-			// Grab the size of the layout dynamically, in case it's changed. This size is required to create the layout on the device
-			UINT elements = ARRAYSIZE(inputElementDesc);
+				// Create the input layout
+				const D3D11_INPUT_ELEMENT_DESC inputElementDesc[] =
+				{
+					{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+					{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+					{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 }
+				};
+				// Grab the size of the layout dynamically, in case it's changed. This size is required to create the layout on the device
+				UINT elements = ARRAYSIZE(inputElementDesc);
 
-			// Create layout on the device
-			hr = myDevice->CreateInputLayout(inputElementDesc, elements, VS_Default, sizeof(VS_Default), &myVertexLayout);
+				// Create layout on the device
+				hr = myDevice->CreateInputLayout(inputElementDesc, elements, VS_Default, sizeof(VS_Default), &myVertexLayout);
 
-			// Set layout in the context
-			myContext->IASetInputLayout(myVertexLayout);
+				// Set layout in the context
+				myContext->IASetInputLayout(myVertexLayout);
+			}
 
-			#pragma endregion
-
-			#pragma region Sample State
-
-			// Create the sample state
-			D3D11_SAMPLER_DESC sampDesc = {};
-			sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-			sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
-			sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
-			sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
-			sampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
-			sampDesc.MinLOD = 0;
-			sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
-			hr = myDevice->CreateSamplerState(&sampDesc, &mySamplerLinear);
-
-			#pragma endregion
+			// Sample State
+			{
+				// Create the sample state
+				D3D11_SAMPLER_DESC sampDesc = {};
+				sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+				sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+				sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+				sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+				sampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+				sampDesc.MinLOD = 0;
+				sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
+				hr = myDevice->CreateSamplerState(&sampDesc, &mySamplerLinear);
+			}
 
 			#pragma region Shader Resource View
 
@@ -214,23 +240,9 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 
 			#pragma endregion
 
-			#pragma region Index Buffer
-
-			// Create index buffer
-			bd.Usage = D3D11_USAGE_DEFAULT;
-			bd.ByteWidth = sizeof(int) * myMesh1.indicesList.size();        // 36 vertices needed for 12 triangles in a triangle list
-			bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
-			bd.CPUAccessFlags = 0;
-			InitData.pSysMem = myMesh1.indicesList.data();
-			hr = myDevice->CreateBuffer(&bd, &InitData, &myIndexBuffer);
-
-			// Set index buffer
-			myContext->IASetIndexBuffer(myIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
-
-			#pragma endregion
-
 			#pragma region Constant Buffer
 
+			D3D11_BUFFER_DESC bd = {};
 			// Create the constant buffer
 			bd.Usage = D3D11_USAGE_DEFAULT;
 			bd.ByteWidth = sizeof(ConstantBuffer);
@@ -272,12 +284,16 @@ LetsDrawSomeStuff::~LetsDrawSomeStuff()
 	// TODO: "Release()" more stuff here!
 	if (myVertexShader)
 		myVertexShader->Release();
-	if (myPixelShader)
-		myPixelShader->Release();
+	if (psDefault)
+		psDefault->Release();
+	if (psSolidColor)
+		psSolidColor->Release();
 	if (myVertexLayout)
 		myVertexLayout->Release();
 	if (myVertexBuffer)
 		myVertexBuffer->Release();
+	if (gridVertexBuffer)
+		gridVertexBuffer->Release();
 	if (myTextureRV)
 		myTextureRV->Release();
 	if (mySamplerLinear)
@@ -329,39 +345,76 @@ void LetsDrawSomeStuff::Render()
 				timeStart = timeCur;
 			t = (timeCur - timeStart) / 1000.0f;
 
-			#pragma region Drawing myMesh1
+			// Drawing myMesh1
+			{
+				// Set vertex buffer in the context
+				UINT stride = sizeof(Vertex);
+				UINT offset = 0;
+				myContext->IASetVertexBuffers(0, 1, &myVertexBuffer, &stride, &offset);
 
-			// Rotate mesh1 around the origin
-			myMesh1.mWorld = XMMatrixRotationY(t);
+				// Set index buffer
+				myContext->IASetIndexBuffer(myIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
 
-			// Set primitive topology
-			myContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+				// Rotate mesh1 around the origin
+				myMesh1.mWorld = XMMatrixRotationY(t);
 
-			// Update constant buffer
-			ConstantBuffer cb1;
-			cb1.mWorld = XMMatrixTranspose(myMesh1.mWorld);
-			cb1.mView = XMMatrixTranspose(myViewMatrix);
-			cb1.mProjection = XMMatrixTranspose(myProjectionMatrix);
-			cb1.dirLightCol = XMFLOAT4(0.6f, 0.6f, 0.6f, 1.0f);
-			cb1.dirLightDir = XMFLOAT4(-1.0f, 0.5f, -0.5f, 1.0f);
-			// Send updated constant buffer
-			myContext->UpdateSubresource(myConstantBuffer, 0, nullptr, &cb1, 0, 0);
+				// Set primitive topology
+				myContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-			// Setup to render normal object
-			myContext->VSSetShader(myVertexShader, nullptr, 0);
-			myContext->VSSetConstantBuffers(0, 1, &myConstantBuffer);
-			myContext->PSSetShader(myPixelShader, nullptr, 0);
-			myContext->PSSetConstantBuffers(0, 1, &myConstantBuffer);
-			myContext->PSSetShaderResources(0, 1, &myTextureRV);
-			myContext->PSSetSamplers(0, 1, &mySamplerLinear);
+				// Update constant buffer
+				ConstantBuffer cb1;
+				cb1.mWorld = XMMatrixTranspose(myMesh1.mWorld);
+				cb1.mView = XMMatrixTranspose(myViewMatrix);
+				cb1.mProjection = XMMatrixTranspose(myProjectionMatrix);
+				cb1.dirLightCol = XMFLOAT4(0.6f, 0.6f, 0.6f, 1.0f);
+				cb1.dirLightDir = XMFLOAT4(-1.0f, 0.5f, -0.5f, 1.0f);
+				// Send updated constant buffer
+				myContext->UpdateSubresource(myConstantBuffer, 0, nullptr, &cb1, 0, 0);
 
-			// Draw normal object
-			myContext->DrawIndexed((UINT)myMesh1.indicesList.size(), 0, 0);
+				// Setup to render normal object
+				myContext->VSSetShader(myVertexShader, nullptr, 0);
+				myContext->VSSetConstantBuffers(0, 1, &myConstantBuffer);
+				myContext->PSSetShader(psDefault, nullptr, 0);
+				myContext->PSSetConstantBuffers(0, 1, &myConstantBuffer);
+				myContext->PSSetShaderResources(0, 1, &myTextureRV);
+				myContext->PSSetSamplers(0, 1, &mySamplerLinear);
 
-			#pragma endregion
+				// Draw indexed object
+				myContext->DrawIndexed((UINT)myMesh1.indicesList.size(), 0, 0);
+			}
 
+			// Drawing gridMesh
+			{
+				// Set vertex buffer in the context
+				UINT stride = sizeof(Vertex);
+				UINT offset = 0;
+				myContext->IASetVertexBuffers(0, 1, &gridVertexBuffer, &stride, &offset);
 
-			
+				// Set index buffer in the context
+				myContext->IASetIndexBuffer(nullptr, DXGI_FORMAT_R32_UINT, 0);
+
+				// Set primitive topology
+				myContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
+
+				// Update constant buffer
+				ConstantBuffer cb1;
+				cb1.mWorld = XMMatrixTranspose(gridMesh.mWorld);
+				cb1.mView = XMMatrixTranspose(myViewMatrix);
+				cb1.mProjection = XMMatrixTranspose(myProjectionMatrix);
+				cb1.dirLightCol = XMFLOAT4(0.6f, 0.6f, 0.6f, 1.0f);
+				cb1.dirLightDir = XMFLOAT4(-1.0f, 0.5f, -0.5f, 1.0f);
+				// Send updated constant buffer
+				myContext->UpdateSubresource(myConstantBuffer, 0, nullptr, &cb1, 0, 0);
+
+				// Setup to render normal object
+				myContext->VSSetShader(myVertexShader, nullptr, 0);
+				myContext->VSSetConstantBuffers(0, 1, &myConstantBuffer);
+				myContext->PSSetShader(psSolidColor, nullptr, 0);
+				myContext->PSSetConstantBuffers(0, 1, &myConstantBuffer);
+
+				// Draw normal object
+				myContext->Draw((UINT)gridMesh.vertexList.size(), 0);
+			}
 
 			// Present Backbuffer using Swapchain object
 			// Framerate is currently unlocked, we suggest "MSI Afterburner" to track your current FPS and memory usage.
