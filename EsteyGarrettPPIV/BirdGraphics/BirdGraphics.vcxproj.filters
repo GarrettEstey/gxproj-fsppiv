@@ -48,5 +48,8 @@
     <FxCompile Include="Shaders\ShaderHeader.fx">
       <Filter>Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="Shaders\PS_SolidColor.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

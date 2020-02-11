@@ -49,6 +49,7 @@ XMMATRIX	myViewMatrix;
 XMMATRIX	myProjectionMatrix;
 
 Mesh		myMesh1;
+Mesh		gridMesh;
 
 // Simple Container class to make life easier/cleaner
 class LetsDrawSomeStuff
@@ -97,10 +98,41 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 			// TODO: Create new DirectX stuff here! (Buffers, Shaders, Layouts, Views, Textures, etc...)
 			HRESULT hr = S_OK;
 
+			#pragma region myMesh1 Loading
+
 			// Load a mesh
 			LoadMesh("./Assets/Meshes/axe.mesh", myMesh1);
 			// Initialize the world matrix for this mesh
 			myMesh1.mWorld = XMMatrixIdentity();
+
+			#pragma endregion
+
+			#pragma region gridMesh Creation
+
+			// Establish constant grid points
+			int index = 0;
+			for (float x = -0.5f; x <= 0.50f; x += 0.10f)
+			{
+				gridMesh.vertexList.push_back({ XMFLOAT3(x, 0.0f, -0.5f), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 0.0f) });
+				++index;
+			}
+			for (float x = -0.5f; x <= 0.50f; x += 0.10f)
+			{
+				gridMesh.vertexList.push_back({ XMFLOAT3(x, 0, 0.5f), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 0.0f) });
+				++index;
+			}
+			for (float z = -0.5f; z <= 0.5f; z += 0.10f)
+			{
+				gridMesh.vertexList.push_back({ XMFLOAT3(-0.5f, 0.0f, z), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 0.0f) });
+				++index;
+			}
+			for (float z = -0.50f; z <= 0.5f; z += 0.10f)
+			{
+				gridMesh.vertexList.push_back({ XMFLOAT3(0.5f, 0.0f, z), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 0.0f) });
+				++index;
+			}
+
+			#pragma endregion
 
 			#pragma region Vertex Buffer
 
@@ -297,7 +329,9 @@ void LetsDrawSomeStuff::Render()
 				timeStart = timeCur;
 			t = (timeCur - timeStart) / 1000.0f;
 
-			// Rotate cube around the origin
+			#pragma region Drawing myMesh1
+
+			// Rotate mesh1 around the origin
 			myMesh1.mWorld = XMMatrixRotationY(t);
 
 			// Set primitive topology
@@ -308,8 +342,8 @@ void LetsDrawSomeStuff::Render()
 			cb1.mWorld = XMMatrixTranspose(myMesh1.mWorld);
 			cb1.mView = XMMatrixTranspose(myViewMatrix);
 			cb1.mProjection = XMMatrixTranspose(myProjectionMatrix);
-			cb1.dirLightCol = XMFLOAT4(0.5f, 0.5f, 0.5f, 1.0f);
-			cb1.dirLightDir = XMFLOAT4(-1.0f, 0.0f, -0.5f, 1.0f);
+			cb1.dirLightCol = XMFLOAT4(0.6f, 0.6f, 0.6f, 1.0f);
+			cb1.dirLightDir = XMFLOAT4(-1.0f, 0.5f, -0.5f, 1.0f);
 			// Send updated constant buffer
 			myContext->UpdateSubresource(myConstantBuffer, 0, nullptr, &cb1, 0, 0);
 
@@ -320,9 +354,14 @@ void LetsDrawSomeStuff::Render()
 			myContext->PSSetConstantBuffers(0, 1, &myConstantBuffer);
 			myContext->PSSetShaderResources(0, 1, &myTextureRV);
 			myContext->PSSetSamplers(0, 1, &mySamplerLinear);
-			
+
 			// Draw normal object
 			myContext->DrawIndexed((UINT)myMesh1.indicesList.size(), 0, 0);
+
+			#pragma endregion
+
+
+			
 
 			// Present Backbuffer using Swapchain object
 			// Framerate is currently unlocked, we suggest "MSI Afterburner" to track your current FPS and memory usage.
