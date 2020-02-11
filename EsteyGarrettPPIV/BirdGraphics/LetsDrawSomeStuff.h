@@ -96,7 +96,7 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 			HRESULT hr = S_OK;
 
 			// Load a mesh
-			LoadMesh("./Assets/Meshes/fan.mesh", myMesh1);
+			LoadMesh("./Assets/Meshes/axe.mesh", myMesh1);
 			// Initialize the world matrix for this mesh
 			myMesh1.mWorld = XMMatrixIdentity();
 
@@ -176,7 +176,7 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 
 			#pragma region Shader Resource View
 
-			hr = CreateDDSTextureFromFile(myDevice, L"./Assets/Textures/fan.dds", nullptr, &myTextureRV);
+			hr = CreateDDSTextureFromFile(myDevice, L"./Assets/Textures/axe.dds", nullptr, &myTextureRV);
 
 			#pragma endregion
 
