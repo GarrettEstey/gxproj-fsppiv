@@ -8,8 +8,9 @@ cbuffer ConstantBuffer : register(b0)
     matrix World;
     matrix View;
     matrix Projection;
-    float4 dirLightDir;
-    float4 dirLightCol;
+    float4 dirLightDir[2];
+    float4 dirLightCol[2];
+    float4 solidColor;
 };
 
 struct VS_INPUT
