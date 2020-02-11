@@ -40,6 +40,8 @@ struct ConstantBuffer
 	XMMATRIX mWorld;
 	XMMATRIX mView;
 	XMMATRIX mProjection;
+	XMFLOAT4 dirLightDir;
+	XMFLOAT4 dirLightCol;
 };
 
 // Global variables
@@ -306,6 +308,9 @@ void LetsDrawSomeStuff::Render()
 			cb1.mWorld = XMMatrixTranspose(myMesh1.mWorld);
 			cb1.mView = XMMatrixTranspose(myViewMatrix);
 			cb1.mProjection = XMMatrixTranspose(myProjectionMatrix);
+			cb1.dirLightCol = XMFLOAT4(0.5f, 0.5f, 0.5f, 1.0f);
+			cb1.dirLightDir = XMFLOAT4(-1.0f, 0.0f, -0.5f, 1.0f);
+			// Send updated constant buffer
 			myContext->UpdateSubresource(myConstantBuffer, 0, nullptr, &cb1, 0, 0);
 
 			// Setup to render normal object
