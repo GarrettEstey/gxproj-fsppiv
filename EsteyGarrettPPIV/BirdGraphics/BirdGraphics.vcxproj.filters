@@ -45,10 +45,10 @@
     <FxCompile Include="Shaders\PS_Default.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="Shaders\ShaderHeader.fx">
+    <FxCompile Include="Shaders\PS_SolidColor.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="Shaders\PS_SolidColor.hlsl">
+    <FxCompile Include="Shaders\ShaderHeader.fx">
       <Filter>Shaders</Filter>
     </FxCompile>
   </ItemGroup>
