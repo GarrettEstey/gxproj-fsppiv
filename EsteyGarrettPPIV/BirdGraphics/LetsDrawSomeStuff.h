@@ -47,13 +47,19 @@ struct ConstantBuffer
 	XMFLOAT4 solidColor;
 };
 
-// Global variables
+// Matrices
 XMMATRIX	myViewMatrix;
 XMMATRIX	myProjectionMatrix;
 
+// Meshes
 Mesh		myMesh1;
 Mesh		gridMesh;
 Mesh		lanternMesh;
+
+// Camera Controls
+POINT		oldCursorPos;
+bool		cameraPaused = false;
+int			inputDelay = 0;
 
 // Simple Container class to make life easier/cleaner
 class LetsDrawSomeStuff
@@ -105,6 +111,8 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 
 			// TODO: Create new DirectX stuff here! (Buffers, Shaders, Layouts, Views, Textures, etc...)
 			HRESULT hr = S_OK;
+
+			GetCursorPos(&oldCursorPos);
 
 			// Mesh Loading
 			{
@@ -295,22 +303,20 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 
 			#pragma endregion
 
-			#pragma region Matrices
+			// Set up matrices
+			{
+				// Initialize the view matrix
+				XMMATRIX transl = XMMatrixTranslation(0.0f, 3.0f, -10.0f);
+				//myViewMatrix = XMMatrixLookAtLH(Eye, At, Up);
+				myViewMatrix = XMMatrixMultiply(XMMatrixIdentity(), transl);
 
-			// Initialize the view matrix
-			XMVECTOR Eye = XMVectorSet(0.0f, 4.0f, -10.0f, 0.0f);
-			XMVECTOR At = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
-			XMVECTOR Up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
-			myViewMatrix = XMMatrixLookAtLH(Eye, At, Up);
-
-			// Initialize the projection matrix
-			UINT height;
-			UINT width;
-			attatchPoint->GetClientHeight(height);
-			attatchPoint->GetClientWidth(width);
-			myProjectionMatrix = XMMatrixPerspectiveFovLH(XM_PIDIV4, width / (FLOAT)height, 0.01f, 100.0f);
-
-			#pragma endregion
+				// Initialize the projection matrix
+				UINT height;
+				UINT width;
+				attatchPoint->GetClientHeight(height);
+				attatchPoint->GetClientWidth(width);
+				myProjectionMatrix = XMMatrixPerspectiveFovLH(XM_PIDIV4, width / (FLOAT)height, 0.01f, 100.0f);
+			}
 
 		}
 	}
@@ -396,6 +402,107 @@ void LetsDrawSomeStuff::Render()
 			
 			// TODO: Set your shaders, Update & Set your constant buffers, Attatch your vertex & index buffers, Set your InputLayout & Topology & Draw!
 
+			// Modify the view matrix based on user input
+			{
+				POINT cursorPos;
+				GetCursorPos(&cursorPos);
+				float xDiff = oldCursorPos.x - cursorPos.x;
+				float yDiff = oldCursorPos.y - cursorPos.y;
+				oldCursorPos = cursorPos;
+				float moveSpeed = 0.005f;
+				if (inputDelay > 0)
+				{
+					inputDelay -= 1;
+				}
+				// Escape locks the camera
+				if (GetAsyncKeyState(VK_ESCAPE) && inputDelay == 0)
+				{
+					cameraPaused = !cameraPaused;
+					inputDelay = 250;
+				}
+				if (GetAsyncKeyState(0x52))
+				{
+					// Initialize the view matrix
+					XMMATRIX transl = XMMatrixTranslation(0.0f, 3.0f, -10.0f);
+					//myViewMatrix = XMMatrixLookAtLH(Eye, At, Up);
+					myViewMatrix = XMMatrixMultiply(XMMatrixIdentity(), transl);
+				}
+				if (!cameraPaused)
+				{
+					// Move to the left using A
+					if (GetAsyncKeyState('A'))
+					{
+						XMMATRIX transl = XMMatrixTranslation(-moveSpeed, 0.0f, 0.0f);
+						myViewMatrix = XMMatrixMultiply(myViewMatrix, transl);
+					}
+					// Move to the right using D
+					if (GetAsyncKeyState('D'))
+					{
+						XMMATRIX transl = XMMatrixTranslation(moveSpeed, 0.0f, 0.0f);
+						myViewMatrix = XMMatrixMultiply(myViewMatrix, transl);
+					}
+					// Move forward using W
+					if (GetAsyncKeyState('W'))
+					{
+						XMMATRIX transl = XMMatrixTranslation(0.0f, 0.0f, moveSpeed);
+						myViewMatrix = XMMatrixMultiply(myViewMatrix, transl);
+					}
+					// Move backward using S
+					if (GetAsyncKeyState('S'))
+					{
+						XMMATRIX transl = XMMatrixTranslation(0.0f, 0.0f, -moveSpeed);
+						myViewMatrix = XMMatrixMultiply(myViewMatrix, transl);
+					}
+					// Move up using SPACE
+					if (GetAsyncKeyState(VK_SPACE))
+					{
+						XMMATRIX transl = XMMatrixTranslation(0.0f, moveSpeed, 0.0f);
+						myViewMatrix = XMMatrixMultiply(myViewMatrix, transl);
+					}
+					// Move down using CTRL
+					if (GetAsyncKeyState(VK_CONTROL))
+					{
+						XMMATRIX transl = XMMatrixTranslation(0.0f, -moveSpeed, 0.0f);
+						myViewMatrix = XMMatrixMultiply(myViewMatrix, transl);
+					}
+					// Rotate based on cursor position
+					if (xDiff != 0)
+					{
+						// Save original location
+						XMMATRIX old = myViewMatrix;
+						// Prepare y rotation matrix
+						XMMATRIX transl = XMMatrixRotationY(-xDiff * 0.001f);
+						// Place matrix at origin
+						myViewMatrix.r[3].m128_f32[0] = 0.0f;
+						myViewMatrix.r[3].m128_f32[1] = 0.0f;
+						myViewMatrix.r[3].m128_f32[2] = 0.0f;
+						// Mutiply matrices in reverse order
+						myViewMatrix = XMMatrixMultiply(transl, myViewMatrix);
+						// Move back to saved position
+						myViewMatrix.r[3].m128_f32[0] = old.r[3].m128_f32[0];
+						myViewMatrix.r[3].m128_f32[1] = old.r[3].m128_f32[1];
+						myViewMatrix.r[3].m128_f32[2] = old.r[3].m128_f32[2];
+					}
+					if (yDiff != 0)
+					{
+						// Save original location
+						XMMATRIX old = myViewMatrix;
+						// Prepare y rotation matrix
+						XMMATRIX transl = XMMatrixRotationX(-yDiff * 0.001f);
+						// Place matrix at origin
+						/*myViewMatrix.r[3].m128_f32[0] = 0.0f;
+						myViewMatrix.r[3].m128_f32[1] = 0.0f;
+						myViewMatrix.r[3].m128_f32[2] = 0.0f;*/
+						// Mutiply matrices in reverse order
+						myViewMatrix = XMMatrixMultiply(myViewMatrix, transl);
+						// Move back to saved position
+						myViewMatrix.r[3].m128_f32[0] = old.r[3].m128_f32[0];
+						myViewMatrix.r[3].m128_f32[1] = old.r[3].m128_f32[1];
+						myViewMatrix.r[3].m128_f32[2] = old.r[3].m128_f32[2];
+					}
+				}
+			}
+
 			// Update our time
 			static float t = 0.0f;
 			static ULONGLONG timeStart = 0;
@@ -405,7 +512,7 @@ void LetsDrawSomeStuff::Render()
 			t = (timeCur - timeStart) / 1000.0f;
 
 			ConstantBuffer cb1;
-			cb1.mView = XMMatrixTranspose(myViewMatrix);
+			cb1.mView = XMMatrixTranspose(XMMatrixInverse(nullptr,myViewMatrix));
 			cb1.mProjection = XMMatrixTranspose(myProjectionMatrix);
 			cb1.dirLightCol[0] = XMFLOAT4(0.6f, 0.6f, 0.6f, 1.0f);
 			cb1.dirLightDir[0] = XMFLOAT4(-1.0f, 0.5f, 0.0f, 1.0f);
