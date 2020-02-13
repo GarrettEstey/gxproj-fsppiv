@@ -40,6 +40,8 @@ namespace DrawingStuff
 		XMMATRIX mWorld;
 		ID3D11Buffer* vertexBuffer = nullptr;
 		ID3D11Buffer* indexBuffer = nullptr;
+		ID3D11ShaderResourceView* textureRV = nullptr;
+		ID3D11SamplerState* samplerLinear = nullptr;
 	};
 
 	struct DirectionalLight
@@ -88,8 +90,6 @@ class LetsDrawSomeStuff
 	ID3D11VertexShader*					myVertexShader = nullptr;
 	ID3D11PixelShader*					psDefault = nullptr;
 	ID3D11PixelShader*					psSolidColor = nullptr;
-	ID3D11ShaderResourceView*           myTextureRV = nullptr;
-	ID3D11SamplerState*                 mySamplerLinear = nullptr;
 
 	void FindMesh(const char* meshName, unsigned int& index);
 
@@ -213,6 +213,22 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 				bd.CPUAccessFlags = 0;
 				InitData.pSysMem = meshes[0].indicesList.data();
 				hr = myDevice->CreateBuffer(&bd, &InitData, &meshes[index].indexBuffer);
+
+				// Sample state
+
+				D3D11_SAMPLER_DESC sampDesc = {};
+				sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+				sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+				sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+				sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+				sampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+				sampDesc.MinLOD = 0;
+				sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
+				hr = myDevice->CreateSamplerState(&sampDesc, &meshes[index].samplerLinear);
+
+				// Resource View
+
+				hr = CreateDDSTextureFromFile(myDevice, L"./Assets/Textures/bed.dds", nullptr, &meshes[index].textureRV);
 			}
 
 			// gridMesh Buffers
@@ -313,26 +329,6 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 				myContext->IASetInputLayout(myVertexLayout);
 			}
 
-			// Sample State
-			{
-				// Create the sample state
-				D3D11_SAMPLER_DESC sampDesc = {};
-				sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-				sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
-				sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
-				sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
-				sampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
-				sampDesc.MinLOD = 0;
-				sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
-				hr = myDevice->CreateSamplerState(&sampDesc, &mySamplerLinear);
-			}
-
-			#pragma region Shader Resource View
-
-			hr = CreateDDSTextureFromFile(myDevice, L"./Assets/Textures/bed.dds", nullptr, &myTextureRV);
-
-			#pragma endregion
-
 			#pragma region Constant Buffer
 
 			D3D11_BUFFER_DESC bd = {};
@@ -384,6 +380,10 @@ LetsDrawSomeStuff::~LetsDrawSomeStuff()
 			var.indexBuffer->Release();
 		if (var.vertexBuffer)
 			var.vertexBuffer->Release();
+		if (var.samplerLinear)
+			var.samplerLinear->Release();
+		if (var.textureRV)
+			var.textureRV->Release();
 	}
 
 	// Release Shaders
@@ -399,10 +399,6 @@ LetsDrawSomeStuff::~LetsDrawSomeStuff()
 	// Release other stuff
 	if (myVertexLayout)
 		myVertexLayout->Release();
-	if (myTextureRV)
-		myTextureRV->Release();
-	if (mySamplerLinear)
-		mySamplerLinear->Release();
 	
 
 	if (mySurface) // Free Gateware Interface
@@ -588,7 +584,7 @@ void LetsDrawSomeStuff::Render()
 				myContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 				// Update constant buffer
-				cb1.mWorld = XMMatrixTranspose(meshes[0].mWorld);
+				cb1.mWorld = XMMatrixTranspose(meshes[index].mWorld);
 				// Send updated constant buffer
 				myContext->UpdateSubresource(myConstantBuffer, 0, nullptr, &cb1, 0, 0);
 
@@ -597,11 +593,11 @@ void LetsDrawSomeStuff::Render()
 				myContext->VSSetConstantBuffers(0, 1, &myConstantBuffer);
 				myContext->PSSetShader(psDefault, nullptr, 0);
 				myContext->PSSetConstantBuffers(0, 1, &myConstantBuffer);
-				myContext->PSSetShaderResources(0, 1, &myTextureRV);
-				myContext->PSSetSamplers(0, 1, &mySamplerLinear);
+				myContext->PSSetShaderResources(0, 1, &meshes[index].textureRV);
+				myContext->PSSetSamplers(0, 1, &meshes[index].samplerLinear);
 
 				// Draw indexed object
-				myContext->DrawIndexed((UINT)meshes[0].indicesList.size(), 0, 0);
+				myContext->DrawIndexed((UINT)meshes[index].indicesList.size(), 0, 0);
 			}
 
 			// Drawing gridMesh
@@ -637,11 +633,15 @@ void LetsDrawSomeStuff::Render()
 				myContext->Draw((UINT)meshes[index].vertexList.size(), 0);
 			}
 
-			// Drawing lantern 1
+			// Drawing Lanterns
 			{
 				// Find the mesh in the vector with the correct name
 				unsigned int index = 0;
 				FindMesh("Lantern", index);
+
+
+
+				// Drawing Lantern 1
 
 				// Set vertex buffer in the context
 				UINT stride = sizeof(Vertex);
@@ -668,19 +668,21 @@ void LetsDrawSomeStuff::Render()
 				myContext->PSSetConstantBuffers(0, 1, &myConstantBuffer);
 
 				// Draw indexed object
-				myContext->DrawIndexed((UINT)meshes[1].indicesList.size(), 0, 0);
-			}
-			// Drawing lantern 2
-			{
+				myContext->DrawIndexed((UINT)meshes[index].indicesList.size(), 0, 0);
+
+
+
+				// Drawing Lantern 2
+
 				// Update constant buffer
-				XMMATRIX mLight = XMMatrixTranslationFromVector(5.0f * XMLoadFloat4(&cb1.dirLights[1].dir));
+				mLight = XMMatrixTranslationFromVector(5.0f * XMLoadFloat4(&cb1.dirLights[1].dir));
 				cb1.mWorld = XMMatrixTranspose(mLight);
 				cb1.solidColor = cb1.dirLights[1].col;
 				// Send updated constant buffer
 				myContext->UpdateSubresource(myConstantBuffer, 0, nullptr, &cb1, 0, 0);
 
 				// Draw indexed object
-				myContext->DrawIndexed((UINT)meshes[1].indicesList.size(), 0, 0);
+				myContext->DrawIndexed((UINT)meshes[index].indicesList.size(), 0, 0);
 			}
 
 			// Present Backbuffer using Swapchain object
