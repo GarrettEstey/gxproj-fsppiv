@@ -34,9 +34,18 @@ namespace DrawingStuff
 
 	struct Mesh
 	{
+		const char* name;
 		vector<Vertex> vertexList;
 		vector<int> indicesList;
 		XMMATRIX mWorld;
+		ID3D11Buffer* vertexBuffer = nullptr;
+		ID3D11Buffer* indexBuffer = nullptr;
+	};
+
+	struct DirectionalLight
+	{
+		XMFLOAT4 col;
+		XMFLOAT4 dir;
 	};
 
 	struct ConstantBuffer
@@ -44,8 +53,7 @@ namespace DrawingStuff
 		XMMATRIX mWorld;
 		XMMATRIX mView;
 		XMMATRIX mProjection;
-		XMFLOAT4 dirLightDir[2];
-		XMFLOAT4 dirLightCol[2];
+		DirectionalLight dirLights[2];
 		XMFLOAT4 solidColor;
 	};
 
@@ -54,9 +62,7 @@ namespace DrawingStuff
 	XMMATRIX		myProjectionMatrix;
 
 	// Meshes
-	Mesh			myMesh1;
-	Mesh			gridMesh;
-	Mesh			lanternMesh;
+	vector<Mesh>	meshes;
 
 	// Camera Controls
 	POINT			oldCursorPos;
@@ -77,11 +83,6 @@ class LetsDrawSomeStuff
 	ID3D11DeviceContext*				myContext = nullptr;
 
 	// TODO: Add your own D3D11 variables here (be sure to "Release()" them when done!)
-	ID3D11Buffer*						myVertexBuffer = nullptr;
-	ID3D11Buffer*						gridVertexBuffer = nullptr;
-	ID3D11Buffer*						lanternVertexBuffer = nullptr;
-	ID3D11Buffer*						myIndexBuffer = nullptr;
-	ID3D11Buffer*						lanternIndexBuffer = nullptr;
 	ID3D11Buffer*					    myConstantBuffer = nullptr;
 	ID3D11InputLayout*					myVertexLayout = nullptr;
 	ID3D11VertexShader*					myVertexShader = nullptr;
@@ -89,6 +90,8 @@ class LetsDrawSomeStuff
 	ID3D11PixelShader*					psSolidColor = nullptr;
 	ID3D11ShaderResourceView*           myTextureRV = nullptr;
 	ID3D11SamplerState*                 mySamplerLinear = nullptr;
+
+	void FindMesh(const char* meshName, unsigned int& index);
 
 public:
 	// Init
@@ -119,42 +122,67 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 
 			GetCursorPos(&oldCursorPos);
 
+			#pragma region Mesh Setup
+
 			// Mesh Loading
 			{
 				XMMATRIX identity = XMMatrixIdentity();
 
-				// Load a mesh
-				LoadMesh("./Assets/Meshes/bed.mesh", myMesh1);
+				// Setup mesh to be used to load in meshes
+				Mesh myMesh;
 				// Initialize the world matrix for this mesh
-				myMesh1.mWorld = identity;
+				myMesh.mWorld = identity;
 
-				// Load a mesh into the lantern
-				LoadMesh("./Assets/Meshes/lantern.mesh", lanternMesh);
-				// Initialize the world matrix for this mesh
-				lanternMesh.mWorld = identity;
+				// Set mesh name
+				myMesh.name = "Bed";
+				// Load a mesh
+				LoadMesh("./Assets/Meshes/bed.mesh", myMesh);
+				// Push this mesh into the meshes vector
+				meshes.push_back(myMesh);
+
+				// Set mesh name
+				myMesh.name = "Lantern";
+				// Load a mesh
+				LoadMesh("./Assets/Meshes/lantern.mesh", myMesh);
+				// Push this mesh into the meshes vector
+				meshes.push_back(myMesh);
 			}
 
 			// gridMesh Creation
 			{
+				// Setup mesh to be used to load in meshes
+				Mesh myMesh;
 				// Initialize the world matrix for this mesh
-				gridMesh.mWorld = XMMatrixIdentity();
+				myMesh.mWorld = XMMatrixIdentity();
 
+				// Set mesh name
+				myMesh.name = "Grid";
 				// Establish constant grid points
 				float gridScale = 1.0f;
 				for (float x = -25.0f; x <= 25.0f; x += 1.0f)
 				{
-					gridMesh.vertexList.push_back({ XMFLOAT3(x * gridScale, 0.0f, -25.0f * gridScale), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 0.0f) });
-					gridMesh.vertexList.push_back({ XMFLOAT3(x * gridScale, 0.0f, 25.0f * gridScale), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 0.0f) });
+					myMesh.vertexList.push_back({ XMFLOAT3(x * gridScale, 0.0f, -25.0f * gridScale), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 0.0f) });
+					myMesh.vertexList.push_back({ XMFLOAT3(x * gridScale, 0.0f, 25.0f * gridScale), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 0.0f) });
 				}
 				for (float z = -25.0f; z <= 25.0f; z += 1.0f)
 				{
-					gridMesh.vertexList.push_back({ XMFLOAT3(-25.0f * gridScale, 0.0f, z * gridScale), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 0.0f) });
-					gridMesh.vertexList.push_back({ XMFLOAT3(25.0f * gridScale, 0.0f, z * gridScale), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 0.0f) });
+					myMesh.vertexList.push_back({ XMFLOAT3(-25.0f * gridScale, 0.0f, z * gridScale), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 0.0f) });
+					myMesh.vertexList.push_back({ XMFLOAT3(25.0f * gridScale, 0.0f, z * gridScale), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 0.0f) });
 				}
+				// Push this mesh into the meshes vector
+				meshes.push_back(myMesh);
 			}
+
+			#pragma endregion
+
+			#pragma region Buffer Setup
 
 			// myMesh1 Buffers
 			{
+				// Find the mesh in the vector with the correct name
+				unsigned int index = 0;
+				FindMesh("Bed", index);
+
 				// Vertex Buffer
 
 				// This creates an empty buffer description object
@@ -168,27 +196,30 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 				// CPUAccessFlags inform what kind of acess the CPU has to this buffer. None. 0. This is immutable
 				bd.CPUAccessFlags = 0;
 				// ByteWidth is just informing how large the buffer is
-				bd.ByteWidth = sizeof(Vertex) * myMesh1.vertexList.size();
+				bd.ByteWidth = sizeof(Vertex) * meshes[index].vertexList.size();
 
 				// Create the buffer on the device
 				D3D11_SUBRESOURCE_DATA InitData = {};
-				InitData.pSysMem = myMesh1.vertexList.data();
-				hr = myDevice->CreateBuffer(&bd, &InitData, &myVertexBuffer);
+				InitData.pSysMem = meshes[index].vertexList.data();
+				hr = myDevice->CreateBuffer(&bd, &InitData, &meshes[index].vertexBuffer);
 
 
 				// Index Buffer
 
 				// Create index buffer
 				bd.Usage = D3D11_USAGE_DEFAULT;
-				bd.ByteWidth = sizeof(int) * myMesh1.indicesList.size();
+				bd.ByteWidth = sizeof(int) * meshes[index].indicesList.size();
 				bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
 				bd.CPUAccessFlags = 0;
-				InitData.pSysMem = myMesh1.indicesList.data();
-				hr = myDevice->CreateBuffer(&bd, &InitData, &myIndexBuffer);
+				InitData.pSysMem = meshes[0].indicesList.data();
+				hr = myDevice->CreateBuffer(&bd, &InitData, &meshes[index].indexBuffer);
 			}
 
 			// gridMesh Buffers
 			{
+				// Find the mesh in the vector with the correct name
+				unsigned int index = 0;
+				FindMesh("Grid", index);
 
 				// This creates an empty buffer description object
 				D3D11_BUFFER_DESC bd = {};
@@ -201,17 +232,21 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 				// CPUAccessFlags inform what kind of acess the CPU has to this buffer. None. 0. This is immutable
 				bd.CPUAccessFlags = 0;
 				// ByteWidth is just informing how large the buffer is
-				bd.ByteWidth = sizeof(Vertex) * gridMesh.vertexList.size();
+				bd.ByteWidth = sizeof(Vertex) * meshes[index].vertexList.size();
 
 				// Create the buffer on the device
 				D3D11_SUBRESOURCE_DATA InitData = {};
-				InitData.pSysMem = gridMesh.vertexList.data();
-				hr = myDevice->CreateBuffer(&bd, &InitData, &gridVertexBuffer);
+				InitData.pSysMem = meshes[index].vertexList.data();
+				hr = myDevice->CreateBuffer(&bd, &InitData, &meshes[index].vertexBuffer);
 
 			}
 
 			// lanternMesh Buffers
 			{
+				// Find the mesh in the vector with the correct name
+				unsigned int index = 0;
+				FindMesh("Lantern", index);
+
 				// Vertex Buffer
 
 				// This creates an empty buffer description object
@@ -225,24 +260,26 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 				// CPUAccessFlags inform what kind of acess the CPU has to this buffer. None. 0. This is immutable
 				bd.CPUAccessFlags = 0;
 				// ByteWidth is just informing how large the buffer is
-				bd.ByteWidth = sizeof(Vertex) * lanternMesh.vertexList.size();
+				bd.ByteWidth = sizeof(Vertex) * meshes[index].vertexList.size();
 
 				// Create the buffer on the device
 				D3D11_SUBRESOURCE_DATA InitData = {};
-				InitData.pSysMem = lanternMesh.vertexList.data();
-				hr = myDevice->CreateBuffer(&bd, &InitData, &lanternVertexBuffer);
+				InitData.pSysMem = meshes[1].vertexList.data();
+				hr = myDevice->CreateBuffer(&bd, &InitData, &meshes[index].vertexBuffer);
 
 
 				// Index Buffer
 
 				// Create index buffer
 				bd.Usage = D3D11_USAGE_DEFAULT;
-				bd.ByteWidth = sizeof(int) * lanternMesh.indicesList.size();
+				bd.ByteWidth = sizeof(int) * meshes[index].indicesList.size();
 				bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
 				bd.CPUAccessFlags = 0;
-				InitData.pSysMem = lanternMesh.indicesList.data();
-				hr = myDevice->CreateBuffer(&bd, &InitData, &lanternIndexBuffer);
+				InitData.pSysMem = meshes[1].indicesList.data();
+				hr = myDevice->CreateBuffer(&bd, &InitData, &meshes[index].indexBuffer);
 			}
+
+			#pragma endregion
 
 			#pragma region Vertex Shaders
 
@@ -341,18 +378,13 @@ LetsDrawSomeStuff::~LetsDrawSomeStuff()
 	if (myConstantBuffer)
 		myConstantBuffer->Release();
 	
-	if (myVertexBuffer)
-		myVertexBuffer->Release();
-	if (myIndexBuffer)
-		myIndexBuffer->Release();
-	
-	if (gridVertexBuffer)
-		gridVertexBuffer->Release();
-
-	if (lanternVertexBuffer)
-		lanternVertexBuffer->Release();
-	if (lanternIndexBuffer)
-		lanternIndexBuffer->Release();
+	for each (Mesh var in meshes)
+	{
+		if (var.indexBuffer)
+			var.indexBuffer->Release();
+		if (var.vertexBuffer)
+			var.vertexBuffer->Release();
+	}
 
 	// Release Shaders
 	if (myVertexShader)
@@ -524,35 +556,39 @@ void LetsDrawSomeStuff::Render()
 			ConstantBuffer cb1;
 			cb1.mView = XMMatrixTranspose(XMMatrixInverse(nullptr,myViewMatrix));
 			cb1.mProjection = XMMatrixTranspose(myProjectionMatrix);
-			cb1.dirLightCol[0] = XMFLOAT4(0.6f, 0.6f, 0.6f, 1.0f);
-			cb1.dirLightDir[0] = XMFLOAT4(-1.0f, 0.5f, 0.0f, 1.0f);
-			cb1.dirLightCol[1] = XMFLOAT4(0.7f, 0.5f, 0.0f, 1.0f);
-			cb1.dirLightDir[1] = XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f);
+			cb1.dirLights[0].col = XMFLOAT4(0.6f, 0.6f, 0.6f, 1.0f);
+			cb1.dirLights[0].dir = XMFLOAT4(-1.0f, 0.5f, 0.0f, 1.0f);
+			cb1.dirLights[1].col = XMFLOAT4(0.7f, 0.5f, 0.0f, 1.0f);
+			cb1.dirLights[1].dir = XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f);
 
 			// Rotate the second light around the origin
 			XMMATRIX mRotate = XMMatrixRotationY(-2.0f * t);
-			XMVECTOR vLightDir = XMLoadFloat4(&cb1.dirLightDir[1]);
+			XMVECTOR vLightDir = XMLoadFloat4(&cb1.dirLights[1].dir);
 			vLightDir = XMVector3Transform(vLightDir, mRotate);
-			XMStoreFloat4(&cb1.dirLightDir[1], vLightDir);
+			XMStoreFloat4(&cb1.dirLights[1].dir, vLightDir);
 
 			// Drawing myMesh1
 			{
+				// Find the mesh in the vector with the correct name
+				unsigned int index = 0;
+				FindMesh("Bed", index);
+
 				// Set vertex buffer in the context
 				UINT stride = sizeof(Vertex);
 				UINT offset = 0;
-				myContext->IASetVertexBuffers(0, 1, &myVertexBuffer, &stride, &offset);
+				myContext->IASetVertexBuffers(0, 1, &meshes[index].vertexBuffer, &stride, &offset);
 
 				// Set index buffer
-				myContext->IASetIndexBuffer(myIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+				myContext->IASetIndexBuffer(meshes[index].indexBuffer, DXGI_FORMAT_R32_UINT, 0);
 
 				// Rotate mesh1 around the origin
-				myMesh1.mWorld = XMMatrixRotationY(t);
+				meshes[0].mWorld = XMMatrixRotationY(t);
 
 				// Set primitive topology
 				myContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 				// Update constant buffer
-				cb1.mWorld = XMMatrixTranspose(myMesh1.mWorld);
+				cb1.mWorld = XMMatrixTranspose(meshes[0].mWorld);
 				// Send updated constant buffer
 				myContext->UpdateSubresource(myConstantBuffer, 0, nullptr, &cb1, 0, 0);
 
@@ -565,15 +601,19 @@ void LetsDrawSomeStuff::Render()
 				myContext->PSSetSamplers(0, 1, &mySamplerLinear);
 
 				// Draw indexed object
-				myContext->DrawIndexed((UINT)myMesh1.indicesList.size(), 0, 0);
+				myContext->DrawIndexed((UINT)meshes[0].indicesList.size(), 0, 0);
 			}
 
 			// Drawing gridMesh
 			{
+				// Find the mesh in the vector with the correct name
+				unsigned int index = 0;
+				FindMesh("Grid", index);
+
 				// Set vertex buffer in the context
 				UINT stride = sizeof(Vertex);
 				UINT offset = 0;
-				myContext->IASetVertexBuffers(0, 1, &gridVertexBuffer, &stride, &offset);
+				myContext->IASetVertexBuffers(0, 1, &meshes[index].vertexBuffer, &stride, &offset);
 
 				// Set index buffer in the context
 				myContext->IASetIndexBuffer(nullptr, DXGI_FORMAT_R32_UINT, 0);
@@ -582,7 +622,7 @@ void LetsDrawSomeStuff::Render()
 				myContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
 
 				// Update constant buffer
-				cb1.mWorld = XMMatrixTranspose(gridMesh.mWorld);
+				cb1.mWorld = XMMatrixTranspose(meshes[index].mWorld);
 				cb1.solidColor = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 				// Send updated constant buffer
 				myContext->UpdateSubresource(myConstantBuffer, 0, nullptr, &cb1, 0, 0);
@@ -594,26 +634,30 @@ void LetsDrawSomeStuff::Render()
 				myContext->PSSetConstantBuffers(0, 1, &myConstantBuffer);
 
 				// Draw normal object
-				myContext->Draw((UINT)gridMesh.vertexList.size(), 0);
+				myContext->Draw((UINT)meshes[index].vertexList.size(), 0);
 			}
 
 			// Drawing lantern 1
 			{
+				// Find the mesh in the vector with the correct name
+				unsigned int index = 0;
+				FindMesh("Lantern", index);
+
 				// Set vertex buffer in the context
 				UINT stride = sizeof(Vertex);
 				UINT offset = 0;
-				myContext->IASetVertexBuffers(0, 1, &lanternVertexBuffer, &stride, &offset);
+				myContext->IASetVertexBuffers(0, 1, &meshes[index].vertexBuffer, &stride, &offset);
 
 				// Set index buffer
-				myContext->IASetIndexBuffer(lanternIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+				myContext->IASetIndexBuffer(meshes[index].indexBuffer, DXGI_FORMAT_R32_UINT, 0);
 
 				// Set primitive topology
 				myContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 				// Update constant buffer
-				XMMATRIX mLight = XMMatrixTranslationFromVector(5.0f * XMLoadFloat4(&cb1.dirLightDir[0]));
+				XMMATRIX mLight = XMMatrixTranslationFromVector(5.0f * XMLoadFloat4(&cb1.dirLights[0].dir));
 				cb1.mWorld = XMMatrixTranspose(mLight);
-				cb1.solidColor = cb1.dirLightCol[0];
+				cb1.solidColor = cb1.dirLights[0].col;
 				// Send updated constant buffer
 				myContext->UpdateSubresource(myConstantBuffer, 0, nullptr, &cb1, 0, 0);
 
@@ -624,19 +668,19 @@ void LetsDrawSomeStuff::Render()
 				myContext->PSSetConstantBuffers(0, 1, &myConstantBuffer);
 
 				// Draw indexed object
-				myContext->DrawIndexed((UINT)lanternMesh.indicesList.size(), 0, 0);
+				myContext->DrawIndexed((UINT)meshes[1].indicesList.size(), 0, 0);
 			}
 			// Drawing lantern 2
 			{
 				// Update constant buffer
-				XMMATRIX mLight = XMMatrixTranslationFromVector(5.0f * XMLoadFloat4(&cb1.dirLightDir[1]));
+				XMMATRIX mLight = XMMatrixTranslationFromVector(5.0f * XMLoadFloat4(&cb1.dirLights[1].dir));
 				cb1.mWorld = XMMatrixTranspose(mLight);
-				cb1.solidColor = cb1.dirLightCol[1];
+				cb1.solidColor = cb1.dirLights[1].col;
 				// Send updated constant buffer
 				myContext->UpdateSubresource(myConstantBuffer, 0, nullptr, &cb1, 0, 0);
 
 				// Draw indexed object
-				myContext->DrawIndexed((UINT)lanternMesh.indicesList.size(), 0, 0);
+				myContext->DrawIndexed((UINT)meshes[1].indicesList.size(), 0, 0);
 			}
 
 			// Present Backbuffer using Swapchain object
@@ -688,4 +732,17 @@ void LetsDrawSomeStuff::LoadMesh(const char* meshFileName, Mesh& mesh)
 		tri[2] = temp;
 	}
 	file.close();
+}
+
+void LetsDrawSomeStuff::FindMesh(const char* meshName, unsigned int& index)
+{
+	index = 0;
+	for each (Mesh var in meshes)
+	{
+		if (var.name == meshName)
+		{
+			break;
+		}
+		index++;
+	}
 }

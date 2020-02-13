@@ -3,13 +3,18 @@
 Texture2D txDiffuse : register(t0);
 SamplerState samLinear : register(s0);
 
+struct DirectionalLight
+{
+    float4 col;
+    float4 dir;
+};
+
 cbuffer ConstantBuffer : register(b0)
 {
     matrix World;
     matrix View;
     matrix Projection;
-    float4 dirLightDir[2];
-    float4 dirLightCol[2];
+    DirectionalLight dirLights[2];
     float4 solidColor;
 };
 
