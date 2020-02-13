@@ -5,8 +5,9 @@ If the exe shortcut doesn't work (Which it probably won't) the exe is in ./Estey
 
 CONTROLS
 
+ESC - Pause the camera controls
 A/D - Move left/right
 W/S - Move forwards/backwards
 SPACE/LCTRL - Move up/down
-Mouse - Look (Not totally stable yet...)
+Mouse - Look 
 R - Reset the camera
