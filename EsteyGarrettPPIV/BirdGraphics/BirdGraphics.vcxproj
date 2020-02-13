@@ -144,6 +144,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="DDSTextureLoader.h" />
+    <ClInclude Include="lightDefines.h" />
     <ClInclude Include="LetsDrawSomeStuff.h" />
   </ItemGroup>
   <ItemGroup>

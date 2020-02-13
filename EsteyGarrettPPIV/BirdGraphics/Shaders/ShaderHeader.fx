@@ -1,5 +1,7 @@
 // https://docs.microsoft.com/en-us/windows/win32/direct3dhlsl/dx-graphics-hlsl-intrinsic-functions
 
+#include "../lightDefines.h"
+
 Texture2D txDiffuse : register(t0);
 SamplerState samLinear : register(s0);
 
@@ -9,12 +11,20 @@ struct DirectionalLight
     float4 dir;
 };
 
+struct PointLight
+{
+    float4 col;
+    float4 pos;
+    float4 rad;
+};
+
 cbuffer ConstantBuffer : register(b0)
 {
     matrix World;
     matrix View;
     matrix Projection;
-    DirectionalLight dirLights[2];
+    DirectionalLight dirLights[DIRLIGHTCOUNT];
+    PointLight pointLights[POINTLIGHTCOUNT];
     float4 solidColor;
 };
 
@@ -28,6 +38,8 @@ struct VS_INPUT
 struct PS_INPUT
 {
     float4 pos : SV_POSITION;
+    float4 wPos : POSITION;
+    float4 color : COLOR;
     float3 norm : NORMAL;
     float2 tex : TEXCOORD;
 };

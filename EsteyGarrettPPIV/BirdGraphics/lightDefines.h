@@ -1,0 +1,5 @@
+#pragma once
+
+#define DIRLIGHTCOUNT 1
+#define POINTLIGHTCOUNT 2
+#define SPOTLIGHTCOUNT 0

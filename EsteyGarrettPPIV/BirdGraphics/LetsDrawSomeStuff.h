@@ -18,6 +18,7 @@
 #include "VS_Default.csh"
 #include "PS_Default.csh"
 #include "PS_SolidColor.csh"
+#include "lightDefines.h"
 
 using namespace DirectX;
 using namespace std;
@@ -50,12 +51,20 @@ namespace DrawingStuff
 		XMFLOAT4 dir;
 	};
 
+	struct PointLight
+	{
+		XMFLOAT4 col;
+		XMFLOAT4 pos;
+		XMFLOAT4 rad;
+	};
+
 	struct ConstantBuffer
 	{
 		XMMATRIX mWorld;
 		XMMATRIX mView;
 		XMMATRIX mProjection;
-		DirectionalLight dirLights[2];
+		DirectionalLight dirLights[DIRLIGHTCOUNT];
+		PointLight pointLights[POINTLIGHTCOUNT];
 		XMFLOAT4 solidColor;
 	};
 
@@ -510,11 +519,7 @@ void LetsDrawSomeStuff::Render()
 						XMMATRIX old = myViewMatrix;
 						// Prepare y rotation matrix
 						XMMATRIX transl = XMMatrixRotationY(-xDiff * lookSpeed);
-						// Place matrix at origin
-						//myViewMatrix.r[3].m128_f32[0] = 0.0f;
-						//myViewMatrix.r[3].m128_f32[1] = 0.0f;
-						//myViewMatrix.r[3].m128_f32[2] = 0.0f;
-						// Mutiply matrices in reverse order
+						// Apply y rotation
 						myViewMatrix = XMMatrixMultiply(myViewMatrix, transl);
 						// Move back to saved position
 						myViewMatrix.r[3].m128_f32[0] = old.r[3].m128_f32[0];
@@ -552,16 +557,31 @@ void LetsDrawSomeStuff::Render()
 			ConstantBuffer cb1;
 			cb1.mView = XMMatrixTranspose(XMMatrixInverse(nullptr,myViewMatrix));
 			cb1.mProjection = XMMatrixTranspose(myProjectionMatrix);
+			// Dir light 1
 			cb1.dirLights[0].col = XMFLOAT4(0.6f, 0.6f, 0.6f, 1.0f);
 			cb1.dirLights[0].dir = XMFLOAT4(-1.0f, 0.5f, 0.0f, 1.0f);
-			cb1.dirLights[1].col = XMFLOAT4(0.7f, 0.5f, 0.0f, 1.0f);
-			cb1.dirLights[1].dir = XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f);
+			// Point light 1
+			cb1.pointLights[0].col = XMFLOAT4(0.9f, 0.7f, 0.0f, 1.0f);
+			cb1.pointLights[0].pos = XMFLOAT4(5.0f, 0.0f, 0.0f, 1.0f);
+			cb1.pointLights[0].rad = XMFLOAT4(10.0f, 0.0f, 0.0f, 1.0f);
+			// Point light 2
+			cb1.pointLights[1].col = XMFLOAT4(0.0f, 0.0f, 0.8f, 1.0f);
+			cb1.pointLights[1].pos = XMFLOAT4(0.0f, 2.5f, 0.0f, 1.0f);
+			cb1.pointLights[1].rad = XMFLOAT4(10.0f, 0.0f, 0.0f, 1.0f);
 
-			// Rotate the second light around the origin
-			XMMATRIX mRotate = XMMatrixRotationY(-2.0f * t);
-			XMVECTOR vLightDir = XMLoadFloat4(&cb1.dirLights[1].dir);
-			vLightDir = XMVector3Transform(vLightDir, mRotate);
-			XMStoreFloat4(&cb1.dirLights[1].dir, vLightDir);
+			{
+				// Rotate the yellow point light around the origin
+				XMMATRIX mModify = XMMatrixRotationY(-2.0f * t);
+				XMVECTOR vLightDir = XMLoadFloat4(&cb1.pointLights[0].pos);
+				vLightDir = XMVector3Transform(vLightDir, mModify);
+				XMStoreFloat4(&cb1.pointLights[0].pos, vLightDir);
+
+				// Move the blue point light back and forth
+				mModify = XMMatrixTranslation(0.0f, 0.0f, sinf(t) * 10.0f);
+				vLightDir = XMLoadFloat4(&cb1.pointLights[1].pos);
+				vLightDir = XMVector3Transform(vLightDir, mModify);
+				XMStoreFloat4(&cb1.pointLights[1].pos, vLightDir);
+			}
 
 			// Drawing myMesh1
 			{
@@ -675,9 +695,25 @@ void LetsDrawSomeStuff::Render()
 				// Drawing Lantern 2
 
 				// Update constant buffer
-				mLight = XMMatrixTranslationFromVector(5.0f * XMLoadFloat4(&cb1.dirLights[1].dir));
+				mLight = XMMatrixTranslationFromVector(5.0f * XMLoadFloat4(&cb1.pointLights[0].pos));
+				mLight = XMMatrixMultiply(mLight, XMMatrixScaling(0.2f, 0.2f, 0.2f));
 				cb1.mWorld = XMMatrixTranspose(mLight);
-				cb1.solidColor = cb1.dirLights[1].col;
+				cb1.solidColor = cb1.pointLights[0].col;
+				// Send updated constant buffer
+				myContext->UpdateSubresource(myConstantBuffer, 0, nullptr, &cb1, 0, 0);
+
+				// Draw indexed object
+				myContext->DrawIndexed((UINT)meshes[index].indicesList.size(), 0, 0);
+
+
+
+				// Drawing Lantern 3
+
+				// Update constant buffer
+				mLight = XMMatrixTranslationFromVector(5.0f * XMLoadFloat4(&cb1.pointLights[1].pos));
+				mLight = XMMatrixMultiply(mLight, XMMatrixScaling(0.2f, 0.2f, 0.2f));
+				cb1.mWorld = XMMatrixTranspose(mLight);
+				cb1.solidColor = cb1.pointLights[1].col;
 				// Send updated constant buffer
 				myContext->UpdateSubresource(myConstantBuffer, 0, nullptr, &cb1, 0, 0);
 
