@@ -22,44 +22,49 @@
 using namespace DirectX;
 using namespace std;
 
-// Structs
-struct Vertex
+namespace DrawingStuff
 {
-	XMFLOAT3 pos;
-	XMFLOAT3 normal;
-	XMFLOAT2 tex;
+	// Structs
+	struct Vertex
+	{
+		XMFLOAT3 pos;
+		XMFLOAT3 normal;
+		XMFLOAT2 tex;
+	};
+
+	struct Mesh
+	{
+		vector<Vertex> vertexList;
+		vector<int> indicesList;
+		XMMATRIX mWorld;
+	};
+
+	struct ConstantBuffer
+	{
+		XMMATRIX mWorld;
+		XMMATRIX mView;
+		XMMATRIX mProjection;
+		XMFLOAT4 dirLightDir[2];
+		XMFLOAT4 dirLightCol[2];
+		XMFLOAT4 solidColor;
+	};
+
+	// Matrices
+	XMMATRIX		myViewMatrix;
+	XMMATRIX		myProjectionMatrix;
+
+	// Meshes
+	Mesh			myMesh1;
+	Mesh			gridMesh;
+	Mesh			lanternMesh;
+
+	// Camera Controls
+	POINT			oldCursorPos;
+	bool			cameraPaused = false;
+	int				inputDelay = 0;
 };
 
-struct Mesh
-{
-	vector<Vertex> vertexList;
-	vector<int> indicesList;
-	XMMATRIX mWorld;
-};
-
-struct ConstantBuffer
-{
-	XMMATRIX mWorld;
-	XMMATRIX mView;
-	XMMATRIX mProjection;
-	XMFLOAT4 dirLightDir[2];
-	XMFLOAT4 dirLightCol[2];
-	XMFLOAT4 solidColor;
-};
-
-// Matrices
-XMMATRIX	myViewMatrix;
-XMMATRIX	myProjectionMatrix;
-
-// Meshes
-Mesh		myMesh1;
-Mesh		gridMesh;
-Mesh		lanternMesh;
-
-// Camera Controls
-POINT		oldCursorPos;
-bool		cameraPaused = false;
-int			inputDelay = 0;
+using namespace DrawingStuff;
 
 // Simple Container class to make life easier/cleaner
 class LetsDrawSomeStuff
@@ -410,6 +415,7 @@ void LetsDrawSomeStuff::Render()
 				float yDiff = oldCursorPos.y - cursorPos.y;
 				oldCursorPos = cursorPos;
 				float moveSpeed = 0.005f;
+				float lookSpeed = 0.003f;
 				if (inputDelay > 0)
 				{
 					inputDelay -= 1;
@@ -433,37 +439,41 @@ void LetsDrawSomeStuff::Render()
 					if (GetAsyncKeyState('A'))
 					{
 						XMMATRIX transl = XMMatrixTranslation(-moveSpeed, 0.0f, 0.0f);
-						myViewMatrix = XMMatrixMultiply(myViewMatrix, transl);
+						// myViewMatrix = XMMatrixMultiply(myViewMatrix, transl);
+						myViewMatrix = XMMatrixMultiply(transl, myViewMatrix);
 					}
 					// Move to the right using D
 					if (GetAsyncKeyState('D'))
 					{
 						XMMATRIX transl = XMMatrixTranslation(moveSpeed, 0.0f, 0.0f);
-						myViewMatrix = XMMatrixMultiply(myViewMatrix, transl);
+						// myViewMatrix = XMMatrixMultiply(myViewMatrix, transl);
+						myViewMatrix = XMMatrixMultiply(transl, myViewMatrix);
 					}
 					// Move forward using W
 					if (GetAsyncKeyState('W'))
 					{
 						XMMATRIX transl = XMMatrixTranslation(0.0f, 0.0f, moveSpeed);
-						myViewMatrix = XMMatrixMultiply(myViewMatrix, transl);
+						// myViewMatrix = XMMatrixMultiply(myViewMatrix, transl);
+						myViewMatrix = XMMatrixMultiply(transl, myViewMatrix);
 					}
 					// Move backward using S
 					if (GetAsyncKeyState('S'))
 					{
 						XMMATRIX transl = XMMatrixTranslation(0.0f, 0.0f, -moveSpeed);
-						myViewMatrix = XMMatrixMultiply(myViewMatrix, transl);
+						// myViewMatrix = XMMatrixMultiply(myViewMatrix, transl);
+						myViewMatrix = XMMatrixMultiply(transl, myViewMatrix);
 					}
 					// Move up using SPACE
 					if (GetAsyncKeyState(VK_SPACE))
 					{
 						XMMATRIX transl = XMMatrixTranslation(0.0f, moveSpeed, 0.0f);
-						myViewMatrix = XMMatrixMultiply(myViewMatrix, transl);
+						myViewMatrix = XMMatrixMultiply(transl, myViewMatrix);
 					}
 					// Move down using CTRL
 					if (GetAsyncKeyState(VK_CONTROL))
 					{
 						XMMATRIX transl = XMMatrixTranslation(0.0f, -moveSpeed, 0.0f);
-						myViewMatrix = XMMatrixMultiply(myViewMatrix, transl);
+						myViewMatrix = XMMatrixMultiply(transl, myViewMatrix);
 					}
 					// Rotate based on cursor position
 					if (xDiff != 0)
@@ -471,13 +481,13 @@ void LetsDrawSomeStuff::Render()
 						// Save original location
 						XMMATRIX old = myViewMatrix;
 						// Prepare y rotation matrix
-						XMMATRIX transl = XMMatrixRotationY(-xDiff * 0.001f);
+						XMMATRIX transl = XMMatrixRotationY(-xDiff * lookSpeed);
 						// Place matrix at origin
-						myViewMatrix.r[3].m128_f32[0] = 0.0f;
-						myViewMatrix.r[3].m128_f32[1] = 0.0f;
-						myViewMatrix.r[3].m128_f32[2] = 0.0f;
+						//myViewMatrix.r[3].m128_f32[0] = 0.0f;
+						//myViewMatrix.r[3].m128_f32[1] = 0.0f;
+						//myViewMatrix.r[3].m128_f32[2] = 0.0f;
 						// Mutiply matrices in reverse order
-						myViewMatrix = XMMatrixMultiply(transl, myViewMatrix);
+						myViewMatrix = XMMatrixMultiply(myViewMatrix, transl);
 						// Move back to saved position
 						myViewMatrix.r[3].m128_f32[0] = old.r[3].m128_f32[0];
 						myViewMatrix.r[3].m128_f32[1] = old.r[3].m128_f32[1];
@@ -488,13 +498,13 @@ void LetsDrawSomeStuff::Render()
 						// Save original location
 						XMMATRIX old = myViewMatrix;
 						// Prepare y rotation matrix
-						XMMATRIX transl = XMMatrixRotationX(-yDiff * 0.001f);
+						XMMATRIX transl = XMMatrixRotationX(-yDiff * lookSpeed);
 						// Place matrix at origin
-						/*myViewMatrix.r[3].m128_f32[0] = 0.0f;
+						myViewMatrix.r[3].m128_f32[0] = 0.0f;
 						myViewMatrix.r[3].m128_f32[1] = 0.0f;
-						myViewMatrix.r[3].m128_f32[2] = 0.0f;*/
+						myViewMatrix.r[3].m128_f32[2] = 0.0f;
 						// Mutiply matrices in reverse order
-						myViewMatrix = XMMatrixMultiply(myViewMatrix, transl);
+						myViewMatrix = XMMatrixMultiply(transl, myViewMatrix);
 						// Move back to saved position
 						myViewMatrix.r[3].m128_f32[0] = old.r[3].m128_f32[0];
 						myViewMatrix.r[3].m128_f32[1] = old.r[3].m128_f32[1];
