@@ -16,6 +16,7 @@
 #include "DDSTextureLoader.h"
 // Shader includes
 #include "VS_Default.csh"
+#include "VS_Waves.csh"
 #include "PS_Default.csh"
 #include "PS_SolidColor.csh"
 #include "PS_CustomWaves.csh"
@@ -68,6 +69,7 @@ using namespace std;
 		DirectionalLight dirLights[DIRLIGHTCOUNT];
 		PointLight pointLights[POINTLIGHTCOUNT];
 		XMFLOAT4 solidColor;
+		XMFLOAT4 time;
 	};
 
 	// Matrices
@@ -98,7 +100,8 @@ class LetsDrawSomeStuff
 	// TODO: Add your own D3D11 variables here (be sure to "Release()" them when done!)
 	ID3D11Buffer*					    myConstantBuffer = nullptr;
 	ID3D11InputLayout*					myVertexLayout = nullptr;
-	ID3D11VertexShader*					myVertexShader = nullptr;
+	ID3D11VertexShader*					vsDefault = nullptr;
+	ID3D11VertexShader*					vsWaves = nullptr;
 	ID3D11PixelShader*					psDefault = nullptr;
 	ID3D11PixelShader*					psSolidColor = nullptr;
 	ID3D11PixelShader*					psCustomWaves = nullptr;
@@ -179,13 +182,14 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 				// Setup mesh to be used to load in meshes
 				Mesh myMesh;
 				// Initialize the world matrix for this mesh
-				myMesh.mWorld = XMMatrixIdentity();
+				myMesh.mWorld = XMMatrixTranslation(0.0f, -2.0f, 0.0f);
 
 				// Set mesh name
 				myMesh.name = "Grid";
 				// Establish constant grid points
 				float gridScale = 1.0f;
-				for (float x = -25.0f; x <= 25.0f; x += 1.0f)
+				float gridSize = 10.0f;
+				/*for (float x = -25.0f; x <= 25.0f; x += 1.0f)
 				{
 					myMesh.vertexList.push_back({ XMFLOAT3(x * gridScale, 0.0f, -25.0f * gridScale), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 0.0f) });
 					myMesh.vertexList.push_back({ XMFLOAT3(x * gridScale, 0.0f, 25.0f * gridScale), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 0.0f) });
@@ -194,6 +198,24 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 				{
 					myMesh.vertexList.push_back({ XMFLOAT3(-25.0f * gridScale, 0.0f, z * gridScale), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 0.0f) });
 					myMesh.vertexList.push_back({ XMFLOAT3(25.0f * gridScale, 0.0f, z * gridScale), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 0.0f) });
+				}*/
+				for (float z = -gridSize; z <= gridSize; z += 1.0f)
+				{
+					for (float x = -gridSize; x < gridSize; x += 1.0f)
+					{
+						float point = x + z;
+						myMesh.vertexList.push_back({ XMFLOAT3(x * gridScale, 0.0f, z * gridScale), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 0.0f) });
+						myMesh.vertexList.push_back({ XMFLOAT3((x + 1.0f) * gridScale, 0.0f, z * gridScale), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 0.0f) });
+					}
+				}
+				for (float z = -gridSize; z < gridSize; z += 1.0f)
+				{
+					for (float x = -gridSize; x <= gridSize; x += 1.0f)
+					{
+						float point = x + z;
+						myMesh.vertexList.push_back({ XMFLOAT3(x * gridScale, 0.0f, z * gridScale), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 0.0f) });
+						myMesh.vertexList.push_back({ XMFLOAT3(x * gridScale, 0.0f, (z + 1.0f) * gridScale), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 0.0f) });
+					}
 				}
 				// Push this mesh into the meshes vector
 				meshes.push_back(myMesh);
@@ -417,7 +439,8 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 
 			#pragma region Vertex Shaders
 
-			myDevice->CreateVertexShader(VS_Default, sizeof(VS_Default), nullptr, &myVertexShader);
+			myDevice->CreateVertexShader(VS_Default, sizeof(VS_Default), nullptr, &vsDefault);
+			myDevice->CreateVertexShader(VS_Waves, sizeof(VS_Waves), nullptr, &vsWaves);
 
 			#pragma endregion
 
@@ -506,8 +529,10 @@ LetsDrawSomeStuff::~LetsDrawSomeStuff()
 	}
 
 	// Release Shaders
-	if (myVertexShader)
-		myVertexShader->Release();
+	if (vsDefault)
+		vsDefault->Release();
+	if (vsWaves)
+		vsWaves->Release();
 
 	if (psDefault)
 		psDefault->Release();
@@ -668,6 +693,7 @@ void LetsDrawSomeStuff::Render()
 
 			// Set up initial constant buffer values
 			ConstantBuffer cb1;
+			cb1.time = XMFLOAT4(t, t, t, 1.0f);
 			cb1.mView = XMMatrixTranspose(XMMatrixInverse(nullptr,myViewMatrix));
 			cb1.mProjection = XMMatrixTranspose(myProjectionMatrix);
 			// Dir light 1
@@ -722,7 +748,7 @@ void LetsDrawSomeStuff::Render()
 				myContext->UpdateSubresource(myConstantBuffer, 0, nullptr, &cb1, 0, 0);
 
 				// Setup to render normal object
-				myContext->VSSetShader(myVertexShader, nullptr, 0);
+				myContext->VSSetShader(vsDefault, nullptr, 0);
 				myContext->VSSetConstantBuffers(0, 1, &myConstantBuffer);
 				myContext->PSSetShader(psDefault, nullptr, 0);
 				myContext->PSSetConstantBuffers(0, 1, &myConstantBuffer);
@@ -757,7 +783,7 @@ void LetsDrawSomeStuff::Render()
 				myContext->UpdateSubresource(myConstantBuffer, 0, nullptr, &cb1, 0, 0);
 
 				// Setup to render normal object
-				myContext->VSSetShader(myVertexShader, nullptr, 0);
+				myContext->VSSetShader(vsWaves, nullptr, 0);
 				myContext->VSSetConstantBuffers(0, 1, &myConstantBuffer);
 				myContext->PSSetShader(psSolidColor, nullptr, 0);
 				myContext->PSSetConstantBuffers(0, 1, &myConstantBuffer);
@@ -785,7 +811,11 @@ void LetsDrawSomeStuff::Render()
 				// Set primitive topology
 				myContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-
+				// Setup to render normal object
+				myContext->VSSetShader(vsDefault, nullptr, 0);
+				myContext->VSSetConstantBuffers(0, 1, &myConstantBuffer);
+				myContext->PSSetShader(psSolidColor, nullptr, 0);
+				myContext->PSSetConstantBuffers(0, 1, &myConstantBuffer);
 
 				// Drawing Point Light 1 Lantern
 
@@ -844,7 +874,7 @@ void LetsDrawSomeStuff::Render()
 				myContext->UpdateSubresource(myConstantBuffer, 0, nullptr, &cb1, 0, 0);
 
 				// Setup to render normal object
-				myContext->VSSetShader(myVertexShader, nullptr, 0);
+				myContext->VSSetShader(vsDefault, nullptr, 0);
 				myContext->VSSetConstantBuffers(0, 1, &myConstantBuffer);
 				myContext->PSSetShader(psDefault, nullptr, 0);
 				myContext->PSSetConstantBuffers(0, 1, &myConstantBuffer);
@@ -883,7 +913,7 @@ void LetsDrawSomeStuff::Render()
 				myContext->UpdateSubresource(myConstantBuffer, 0, nullptr, &cb1, 0, 0);
 
 				// Setup to render normal object
-				myContext->VSSetShader(myVertexShader, nullptr, 0);
+				myContext->VSSetShader(vsDefault, nullptr, 0);
 				myContext->VSSetConstantBuffers(0, 1, &myConstantBuffer);
 				myContext->PSSetShader(psCustomWaves, nullptr, 0);
 				myContext->PSSetConstantBuffers(0, 1, &myConstantBuffer);
