@@ -8,7 +8,7 @@ PS_INPUT main(VS_INPUT input)
     output.wPos = output.pos;
     output.pos = mul(output.pos, View);
     output.pos = mul(output.pos, Projection);
-    output.norm = mul(float4(input.norm, 1), World).xyz;
+    output.norm = mul(float4(input.norm, 0), World).xyz;
     output.tex = input.tex;
     return output;
 }

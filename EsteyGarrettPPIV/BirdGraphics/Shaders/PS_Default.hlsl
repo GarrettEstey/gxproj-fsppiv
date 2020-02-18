@@ -11,10 +11,10 @@ float4 main(PS_INPUT input) : SV_TARGET
 		float lightRatio = saturate(dot(dirLights[0].dir.xyz, input.norm));
 		lightRatio = saturate(lightRatio + 0.4f);
 		finalColor += lightRatio * dirLights[0].col;
-		for (int i = 0; i < DIRLIGHTCOUNT - 1; i++)
+		for (int i = 1; i < DIRLIGHTCOUNT - 1; i++)
 		{
             // Then all the other lights
-            finalColor += saturate(dot((float3) dirLights[1].dir, input.norm) * dirLights[1].col);
+            finalColor += saturate(dot(dirLights[1].dir.xyz, input.norm) * dirLights[1].col);
 		}
 	}
     
