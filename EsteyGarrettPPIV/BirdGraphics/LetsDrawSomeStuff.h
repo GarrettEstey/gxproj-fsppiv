@@ -15,11 +15,11 @@
 #include <fstream>
 #include "DDSTextureLoader.h"
 // Shader includes
-#include "VS_Default.csh"
-#include "VS_Waves.csh"
-#include "PS_Default.csh"
-#include "PS_SolidColor.csh"
-#include "PS_CustomWaves.csh"
+#include "./Shaders/Csh/VS_Default.csh"
+#include "./Shaders/Csh/VS_Waves.csh"
+#include "./Shaders/Csh/PS_Default.csh"
+#include "./Shaders/Csh/PS_SolidColor.csh"
+#include "./Shaders/Csh/PS_CustomWaves.csh"
 // Other includes
 #include "lightDefines.h"
 
@@ -191,7 +191,7 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 				meshes.push_back(myMesh);
 			}
 
-			// gridMesh Creation
+			// Grid mesh creation
 			{
 				// Setup mesh to be used to load in meshes
 				Mesh myMesh;
@@ -229,6 +229,31 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 						float point = x + z;
 						myMesh.vertexList.push_back({ XMFLOAT3(x * gridScale, 0.0f, z * gridScale), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 0.0f) });
 						myMesh.vertexList.push_back({ XMFLOAT3(x * gridScale, 0.0f, (z + 1.0f) * gridScale), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 0.0f) });
+					}
+				}
+				// Push this mesh into the meshes vector
+				meshes.push_back(myMesh);
+			}
+
+
+			// PointGrid mesh creation
+			{
+				// Setup mesh to be used to load in meshes
+				Mesh myMesh;
+				// Initialize the world matrix for this mesh
+				myMesh.mWorld = XMMatrixTranslation(0.0f, -1.0f, 0.0f);
+
+				// Set mesh name
+				myMesh.name = "PointGrid";
+				// Establish constant grid points
+				float gridScale = 1.0f;
+				float gridSize = 10.0f;
+				for (float z = -gridSize; z <= gridSize; z += 1.0f)
+				{
+					for (float x = -gridSize; x <= gridSize; x += 1.0f)
+					{
+						float point = x + z;
+						myMesh.vertexList.push_back({ XMFLOAT3(x * gridScale, 0.0f, z * gridScale), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 0.0f) });
 					}
 				}
 				// Push this mesh into the meshes vector
@@ -555,6 +580,32 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 				// Resource View
 
 				hr = CreateDDSTextureFromFile(myDevice, L"./Assets/Textures/treasureChest.dds", nullptr, &meshes[index].textureRV);
+			}
+
+			// Point Grid Buffers
+			{
+				// Find the mesh in the vector with the correct name
+				unsigned int index = 0;
+				FindMesh("PointGrid", index);
+
+				// This creates an empty buffer description object
+				D3D11_BUFFER_DESC bd = {};
+				// The usage flag informs how the data will be used. IMMUTABLE means that this is a constant, never changing buffer
+				// You can also use DEFAULT, which allows the GPU to alter this data, but not the CPU
+				// There is also DYNAMIC, meaning it can be changed at any time by the CPU or GPU
+				bd.Usage = D3D11_USAGE_IMMUTABLE;
+				// The bindFlags inform what the buffer will be used to store. In this case, verts
+				bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+				// CPUAccessFlags inform what kind of acess the CPU has to this buffer. None. 0. This is immutable
+				bd.CPUAccessFlags = 0;
+				// ByteWidth is just informing how large the buffer is
+				bd.ByteWidth = sizeof(Vertex) * meshes[index].vertexList.size();
+
+				// Create the buffer on the device
+				D3D11_SUBRESOURCE_DATA InitData = {};
+				InitData.pSysMem = meshes[index].vertexList.data();
+				hr = myDevice->CreateBuffer(&bd, &InitData, &meshes[index].vertexBuffer);
+
 			}
 
 			#pragma endregion
@@ -1044,6 +1095,39 @@ void LetsDrawSomeStuff::Render()
 				// Draw indexed object
 				myContext->DrawIndexedInstanced((UINT)meshes[index].indicesList.size(), 3, 0, 0, 0);
 				//myContext->DrawIndexed((UINT)meshes[index].indicesList.size(), 0, 0);
+			}
+
+			// Drawing the point grid
+			{
+				// Find the mesh in the vector with the correct name
+				unsigned int index = 0;
+				FindMesh("PointGrid", index);
+
+				// Set vertex buffer in the context
+				UINT stride = sizeof(Vertex);
+				UINT offset = 0;
+				myContext->IASetVertexBuffers(0, 1, &meshes[index].vertexBuffer, &stride, &offset);
+
+				// Set index buffer in the context
+				myContext->IASetIndexBuffer(nullptr, DXGI_FORMAT_R32_UINT, 0);
+
+				// Set primitive topology
+				myContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
+
+				// Update constant buffer
+				cb1.mWorld = XMMatrixTranspose(meshes[index].mWorld);
+				cb1.solidColor = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+				// Send updated constant buffer
+				myContext->UpdateSubresource(myConstantBuffer, 0, nullptr, &cb1, 0, 0);
+
+				// Setup to render normal object
+				myContext->VSSetShader(vsDefault, nullptr, 0);
+				myContext->VSSetConstantBuffers(0, 1, &myConstantBuffer);
+				myContext->PSSetShader(psSolidColor, nullptr, 0);
+				myContext->PSSetConstantBuffers(0, 1, &myConstantBuffer);
+
+				// Draw normal object
+				myContext->Draw((UINT)meshes[index].vertexList.size(), 0);
 			}
 
 			// Present Backbuffer using Swapchain object
