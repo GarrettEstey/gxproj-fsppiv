@@ -26,8 +26,8 @@
 using namespace DirectX;
 using namespace std;
 
-//namespace DrawingStuff
-//{
+namespace DrawingStuff
+{
 	// Structs
 	struct Vertex
 	{
@@ -83,9 +83,9 @@ using namespace std;
 	POINT			oldCursorPos;
 	bool			cameraPaused = false;
 	int				inputDelay = 0;
-//};
+};
 
-//using namespace DrawingStuff;
+using namespace DrawingStuff;
 
 // Simple Container class to make life easier/cleaner
 class LetsDrawSomeStuff
@@ -641,13 +641,13 @@ void LetsDrawSomeStuff::Render()
 					if (GetAsyncKeyState(VK_SPACE))
 					{
 						XMMATRIX transl = XMMatrixTranslation(0.0f, moveSpeed, 0.0f);
-						myViewMatrix = XMMatrixMultiply(transl, myViewMatrix);
+						myViewMatrix = XMMatrixMultiply(myViewMatrix, transl);
 					}
 					// Move down using CTRL
 					if (GetAsyncKeyState(VK_CONTROL))
 					{
 						XMMATRIX transl = XMMatrixTranslation(0.0f, -moveSpeed, 0.0f);
-						myViewMatrix = XMMatrixMultiply(transl, myViewMatrix);
+						myViewMatrix = XMMatrixMultiply(myViewMatrix, transl);
 					}
 					// Rotate based on cursor position
 					if (xDiff != 0)
@@ -701,13 +701,14 @@ void LetsDrawSomeStuff::Render()
 			cb1.dirLights[0].dir = XMFLOAT4(-1.0f, 0.5f, 0.0f, 1.0f);
 			// Point light 1
 			cb1.pointLights[0].col = XMFLOAT4(0.7f, 0.5f, 0.0f, 1.0f);
-			cb1.pointLights[0].pos = XMFLOAT4(4.0f, 0.0f, 0.0f, 1.0f);
-			cb1.pointLights[0].rad = XMFLOAT4(7.0f, 0.0f, 0.0f, 1.0f);
+			cb1.pointLights[0].pos = XMFLOAT4(3.5f, 0.0f, 0.0f, 1.0f);
+			cb1.pointLights[0].rad = XMFLOAT4(3.0f, 0.0f, 0.0f, 1.0f);
 			// Point light 2
 			cb1.pointLights[1].col = XMFLOAT4(0.0f, 0.0f, 0.5f, 1.0f);
 			cb1.pointLights[1].pos = XMFLOAT4(0.0f, 2.5f, 0.0f, 1.0f);
-			cb1.pointLights[1].rad = XMFLOAT4(5.0f, 0.0f, 0.0f, 1.0f);
+			cb1.pointLights[1].rad = XMFLOAT4(7.0f, 0.0f, 0.0f, 1.0f);
 
+			// Move lights
 			{
 				// Rotate the yellow point light around the origin
 				XMMATRIX mModify = XMMatrixRotationY(-2.0f * t);
@@ -720,43 +721,6 @@ void LetsDrawSomeStuff::Render()
 				vLightDir = XMLoadFloat4(&cb1.pointLights[1].pos);
 				vLightDir = XMVector3Transform(vLightDir, mModify);
 				XMStoreFloat4(&cb1.pointLights[1].pos, vLightDir);
-			}
-
-			// Drawing the bed
-			{
-				// Find the mesh in the vector with the correct name
-				unsigned int index = 0;
-				FindMesh("Bed", index);
-
-				// Set vertex buffer in the context
-				UINT stride = sizeof(Vertex);
-				UINT offset = 0;
-				myContext->IASetVertexBuffers(0, 1, &meshes[index].vertexBuffer, &stride, &offset);
-
-				// Set index buffer
-				myContext->IASetIndexBuffer(meshes[index].indexBuffer, DXGI_FORMAT_R32_UINT, 0);
-
-				// Rotate mesh1 around the origin
-				meshes[index].mWorld = XMMatrixTranslation(0.0f, 0.0f, 7.0f);
-
-				// Set primitive topology
-				myContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-				// Update constant buffer
-				cb1.mWorld = XMMatrixTranspose(meshes[index].mWorld);
-				// Send updated constant buffer
-				myContext->UpdateSubresource(myConstantBuffer, 0, nullptr, &cb1, 0, 0);
-
-				// Setup to render normal object
-				myContext->VSSetShader(vsDefault, nullptr, 0);
-				myContext->VSSetConstantBuffers(0, 1, &myConstantBuffer);
-				myContext->PSSetShader(psDefault, nullptr, 0);
-				myContext->PSSetConstantBuffers(0, 1, &myConstantBuffer);
-				myContext->PSSetShaderResources(0, 1, &meshes[index].textureRV);
-				myContext->PSSetSamplers(0, 1, &meshes[index].samplerLinear);
-
-				// Draw indexed object
-				myContext->DrawIndexed((UINT)meshes[index].indicesList.size(), 0, 0);
 			}
 
 			// Drawing the grid
@@ -864,6 +828,43 @@ void LetsDrawSomeStuff::Render()
 				//meshes[index].mWorld = XMMatrixRotationY(t);
 				meshes[index].mWorld = XMMatrixIdentity();
 				//meshes[index].mWorld = XMMatrixTranslation(-7.0f, 0.0f, 0.0f);
+
+				// Set primitive topology
+				myContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+				// Update constant buffer
+				cb1.mWorld = XMMatrixTranspose(meshes[index].mWorld);
+				// Send updated constant buffer
+				myContext->UpdateSubresource(myConstantBuffer, 0, nullptr, &cb1, 0, 0);
+
+				// Setup to render normal object
+				myContext->VSSetShader(vsDefault, nullptr, 0);
+				myContext->VSSetConstantBuffers(0, 1, &myConstantBuffer);
+				myContext->PSSetShader(psDefault, nullptr, 0);
+				myContext->PSSetConstantBuffers(0, 1, &myConstantBuffer);
+				myContext->PSSetShaderResources(0, 1, &meshes[index].textureRV);
+				myContext->PSSetSamplers(0, 1, &meshes[index].samplerLinear);
+
+				// Draw indexed object
+				myContext->DrawIndexed((UINT)meshes[index].indicesList.size(), 0, 0);
+			}
+
+			// Drawing the bed
+			{
+				// Find the mesh in the vector with the correct name
+				unsigned int index = 0;
+				FindMesh("Bed", index);
+
+				// Set vertex buffer in the context
+				UINT stride = sizeof(Vertex);
+				UINT offset = 0;
+				myContext->IASetVertexBuffers(0, 1, &meshes[index].vertexBuffer, &stride, &offset);
+
+				// Set index buffer
+				myContext->IASetIndexBuffer(meshes[index].indexBuffer, DXGI_FORMAT_R32_UINT, 0);
+
+				// Rotate mesh1 around the origin
+				meshes[index].mWorld = XMMatrixTranslation(0.0f, 0.0f, 7.0f);
 
 				// Set primitive topology
 				myContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
