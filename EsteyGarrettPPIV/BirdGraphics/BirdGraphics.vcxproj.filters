@@ -54,5 +54,11 @@
     <FxCompile Include="Shaders\ShaderHeader.fx">
       <Filter>Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="Shaders\VS_Waves.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\PS_CustomWaves.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

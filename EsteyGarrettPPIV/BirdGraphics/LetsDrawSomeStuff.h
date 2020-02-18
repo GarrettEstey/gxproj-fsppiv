@@ -18,13 +18,15 @@
 #include "VS_Default.csh"
 #include "PS_Default.csh"
 #include "PS_SolidColor.csh"
+#include "PS_CustomWaves.csh"
+// Other includes
 #include "lightDefines.h"
 
 using namespace DirectX;
 using namespace std;
 
-namespace DrawingStuff
-{
+//namespace DrawingStuff
+//{
 	// Structs
 	struct Vertex
 	{
@@ -79,9 +81,9 @@ namespace DrawingStuff
 	POINT			oldCursorPos;
 	bool			cameraPaused = false;
 	int				inputDelay = 0;
-};
+//};
 
-using namespace DrawingStuff;
+//using namespace DrawingStuff;
 
 // Simple Container class to make life easier/cleaner
 class LetsDrawSomeStuff
@@ -99,6 +101,7 @@ class LetsDrawSomeStuff
 	ID3D11VertexShader*					myVertexShader = nullptr;
 	ID3D11PixelShader*					psDefault = nullptr;
 	ID3D11PixelShader*					psSolidColor = nullptr;
+	ID3D11PixelShader*					psCustomWaves = nullptr;
 
 	void FindMesh(const char* meshName, unsigned int& index);
 
@@ -155,6 +158,20 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 				LoadMesh("./Assets/Meshes/lantern.mesh", myMesh);
 				// Push this mesh into the meshes vector
 				meshes.push_back(myMesh);
+
+				// Set mesh name
+				myMesh.name = "Fan";
+				// Load a mesh
+				LoadMesh("./Assets/Meshes/fan.mesh", myMesh);
+				// Push this mesh into the meshes vector
+				meshes.push_back(myMesh);
+
+				// Set mesh name
+				myMesh.name = "Cube";
+				// Load a mesh
+				LoadMesh("./Assets/Meshes/cube.mesh", myMesh);
+				// Push this mesh into the meshes vector
+				meshes.push_back(myMesh);
 			}
 
 			// gridMesh Creation
@@ -186,7 +203,7 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 
 			#pragma region Buffer Setup
 
-			// myMesh1 Buffers
+			// Bed Buffers
 			{
 				// Find the mesh in the vector with the correct name
 				unsigned int index = 0;
@@ -220,7 +237,7 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 				bd.ByteWidth = sizeof(int) * meshes[index].indicesList.size();
 				bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
 				bd.CPUAccessFlags = 0;
-				InitData.pSysMem = meshes[0].indicesList.data();
+				InitData.pSysMem = meshes[index].indicesList.data();
 				hr = myDevice->CreateBuffer(&bd, &InitData, &meshes[index].indexBuffer);
 
 				// Sample state
@@ -240,7 +257,7 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 				hr = CreateDDSTextureFromFile(myDevice, L"./Assets/Textures/bed.dds", nullptr, &meshes[index].textureRV);
 			}
 
-			// gridMesh Buffers
+			// Grid Buffers
 			{
 				// Find the mesh in the vector with the correct name
 				unsigned int index = 0;
@@ -266,7 +283,7 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 
 			}
 
-			// lanternMesh Buffers
+			// Lantern Buffers
 			{
 				// Find the mesh in the vector with the correct name
 				unsigned int index = 0;
@@ -304,6 +321,98 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 				hr = myDevice->CreateBuffer(&bd, &InitData, &meshes[index].indexBuffer);
 			}
 
+			// Fan Buffers
+			{
+				// Find the mesh in the vector with the correct name
+				unsigned int index = 0;
+				FindMesh("Fan", index);
+
+				// Vertex Buffer
+
+				// This creates an empty buffer description object
+				D3D11_BUFFER_DESC bd = {};
+				// The usage flag informs how the data will be used. IMMUTABLE means that this is a constant, never changing buffer
+				// You can also use DEFAULT, which allows the GPU to alter this data, but not the CPU
+				// There is also DYNAMIC, meaning it can be changed at any time by the CPU or GPU
+				bd.Usage = D3D11_USAGE_IMMUTABLE;
+				// The bindFlags inform what the buffer will be used to store. In this case, verts
+				bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+				// CPUAccessFlags inform what kind of acess the CPU has to this buffer. None. 0. This is immutable
+				bd.CPUAccessFlags = 0;
+				// ByteWidth is just informing how large the buffer is
+				bd.ByteWidth = sizeof(Vertex) * meshes[index].vertexList.size();
+
+				// Create the buffer on the device
+				D3D11_SUBRESOURCE_DATA InitData = {};
+				InitData.pSysMem = meshes[index].vertexList.data();
+				hr = myDevice->CreateBuffer(&bd, &InitData, &meshes[index].vertexBuffer);
+
+
+				// Index Buffer
+
+				// Create index buffer
+				bd.Usage = D3D11_USAGE_DEFAULT;
+				bd.ByteWidth = sizeof(int) * meshes[index].indicesList.size();
+				bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
+				bd.CPUAccessFlags = 0;
+				InitData.pSysMem = meshes[index].indicesList.data();
+				hr = myDevice->CreateBuffer(&bd, &InitData, &meshes[index].indexBuffer);
+
+				// Sample state
+
+				D3D11_SAMPLER_DESC sampDesc = {};
+				sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+				sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+				sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+				sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+				sampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+				sampDesc.MinLOD = 0;
+				sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
+				hr = myDevice->CreateSamplerState(&sampDesc, &meshes[index].samplerLinear);
+
+				// Resource View
+
+				hr = CreateDDSTextureFromFile(myDevice, L"./Assets/Textures/fan.dds", nullptr, &meshes[index].textureRV);
+			}
+
+			// Cube Buffers
+			{
+				// Find the mesh in the vector with the correct name
+				unsigned int index = 0;
+				FindMesh("Cube", index);
+
+				// Vertex Buffer
+
+				// This creates an empty buffer description object
+				D3D11_BUFFER_DESC bd = {};
+				// The usage flag informs how the data will be used. IMMUTABLE means that this is a constant, never changing buffer
+				// You can also use DEFAULT, which allows the GPU to alter this data, but not the CPU
+				// There is also DYNAMIC, meaning it can be changed at any time by the CPU or GPU
+				bd.Usage = D3D11_USAGE_IMMUTABLE;
+				// The bindFlags inform what the buffer will be used to store. In this case, verts
+				bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+				// CPUAccessFlags inform what kind of acess the CPU has to this buffer. None. 0. This is immutable
+				bd.CPUAccessFlags = 0;
+				// ByteWidth is just informing how large the buffer is
+				bd.ByteWidth = sizeof(Vertex) * meshes[index].vertexList.size();
+
+				// Create the buffer on the device
+				D3D11_SUBRESOURCE_DATA InitData = {};
+				InitData.pSysMem = meshes[index].vertexList.data();
+				hr = myDevice->CreateBuffer(&bd, &InitData, &meshes[index].vertexBuffer);
+
+
+				// Index Buffer
+
+				// Create index buffer
+				bd.Usage = D3D11_USAGE_DEFAULT;
+				bd.ByteWidth = sizeof(int) * meshes[index].indicesList.size();
+				bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
+				bd.CPUAccessFlags = 0;
+				InitData.pSysMem = meshes[index].indicesList.data();
+				hr = myDevice->CreateBuffer(&bd, &InitData, &meshes[index].indexBuffer);
+			}
+
 			#pragma endregion
 
 			#pragma region Vertex Shaders
@@ -316,6 +425,7 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 
 			myDevice->CreatePixelShader(PS_Default, sizeof(PS_Default), nullptr, &psDefault);
 			myDevice->CreatePixelShader(PS_SolidColor, sizeof(PS_SolidColor), nullptr, &psSolidColor);
+			myDevice->CreatePixelShader(PS_CustomWaves, sizeof(PS_CustomWaves), nullptr, &psCustomWaves);
 
 			#pragma endregion
 
@@ -403,6 +513,8 @@ LetsDrawSomeStuff::~LetsDrawSomeStuff()
 		psDefault->Release();
 	if (psSolidColor)
 		psSolidColor->Release();
+	if (psCustomWaves)
+		psCustomWaves->Release();
 	
 	
 	// Release other stuff
@@ -554,6 +666,7 @@ void LetsDrawSomeStuff::Render()
 				timeStart = timeCur;
 			t = (timeCur - timeStart) / 1000.0f;
 
+			// Set up initial constant buffer values
 			ConstantBuffer cb1;
 			cb1.mView = XMMatrixTranspose(XMMatrixInverse(nullptr,myViewMatrix));
 			cb1.mProjection = XMMatrixTranspose(myProjectionMatrix);
@@ -561,13 +674,13 @@ void LetsDrawSomeStuff::Render()
 			cb1.dirLights[0].col = XMFLOAT4(0.6f, 0.6f, 0.6f, 1.0f);
 			cb1.dirLights[0].dir = XMFLOAT4(-1.0f, 0.5f, 0.0f, 1.0f);
 			// Point light 1
-			cb1.pointLights[0].col = XMFLOAT4(0.9f, 0.7f, 0.0f, 1.0f);
-			cb1.pointLights[0].pos = XMFLOAT4(5.0f, 0.0f, 0.0f, 1.0f);
-			cb1.pointLights[0].rad = XMFLOAT4(10.0f, 0.0f, 0.0f, 1.0f);
+			cb1.pointLights[0].col = XMFLOAT4(0.7f, 0.5f, 0.0f, 1.0f);
+			cb1.pointLights[0].pos = XMFLOAT4(4.0f, 0.0f, 0.0f, 1.0f);
+			cb1.pointLights[0].rad = XMFLOAT4(7.0f, 0.0f, 0.0f, 1.0f);
 			// Point light 2
-			cb1.pointLights[1].col = XMFLOAT4(0.0f, 0.0f, 0.8f, 1.0f);
+			cb1.pointLights[1].col = XMFLOAT4(0.0f, 0.0f, 0.5f, 1.0f);
 			cb1.pointLights[1].pos = XMFLOAT4(0.0f, 2.5f, 0.0f, 1.0f);
-			cb1.pointLights[1].rad = XMFLOAT4(10.0f, 0.0f, 0.0f, 1.0f);
+			cb1.pointLights[1].rad = XMFLOAT4(5.0f, 0.0f, 0.0f, 1.0f);
 
 			{
 				// Rotate the yellow point light around the origin
@@ -583,7 +696,7 @@ void LetsDrawSomeStuff::Render()
 				XMStoreFloat4(&cb1.pointLights[1].pos, vLightDir);
 			}
 
-			// Drawing myMesh1
+			// Drawing the bed
 			{
 				// Find the mesh in the vector with the correct name
 				unsigned int index = 0;
@@ -598,7 +711,7 @@ void LetsDrawSomeStuff::Render()
 				myContext->IASetIndexBuffer(meshes[index].indexBuffer, DXGI_FORMAT_R32_UINT, 0);
 
 				// Rotate mesh1 around the origin
-				meshes[0].mWorld = XMMatrixRotationY(t);
+				meshes[index].mWorld = XMMatrixTranslation(0.0f, 0.0f, 7.0f);
 
 				// Set primitive topology
 				myContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -620,7 +733,7 @@ void LetsDrawSomeStuff::Render()
 				myContext->DrawIndexed((UINT)meshes[index].indicesList.size(), 0, 0);
 			}
 
-			// Drawing gridMesh
+			// Drawing the grid
 			{
 				// Find the mesh in the vector with the correct name
 				unsigned int index = 0;
@@ -655,13 +768,11 @@ void LetsDrawSomeStuff::Render()
 
 			// Drawing Lanterns
 			{
+				// Set up to draw lanterns
+
 				// Find the mesh in the vector with the correct name
 				unsigned int index = 0;
 				FindMesh("Lantern", index);
-
-
-
-				// Drawing Lantern 1
 
 				// Set vertex buffer in the context
 				UINT stride = sizeof(Vertex);
@@ -674,28 +785,12 @@ void LetsDrawSomeStuff::Render()
 				// Set primitive topology
 				myContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-				// Update constant buffer
-				XMMATRIX mLight = XMMatrixTranslationFromVector(5.0f * XMLoadFloat4(&cb1.dirLights[0].dir));
-				cb1.mWorld = XMMatrixTranspose(mLight);
-				cb1.solidColor = cb1.dirLights[0].col;
-				// Send updated constant buffer
-				myContext->UpdateSubresource(myConstantBuffer, 0, nullptr, &cb1, 0, 0);
-
-				// Setup to render normal object
-				myContext->VSSetShader(myVertexShader, nullptr, 0);
-				myContext->VSSetConstantBuffers(0, 1, &myConstantBuffer);
-				myContext->PSSetShader(psSolidColor, nullptr, 0);
-				myContext->PSSetConstantBuffers(0, 1, &myConstantBuffer);
-
-				// Draw indexed object
-				myContext->DrawIndexed((UINT)meshes[index].indicesList.size(), 0, 0);
 
 
-
-				// Drawing Lantern 2
+				// Drawing Point Light 1 Lantern
 
 				// Update constant buffer
-				mLight = XMMatrixTranslationFromVector(5.0f * XMLoadFloat4(&cb1.pointLights[0].pos));
+				XMMATRIX mLight = XMMatrixTranslationFromVector(5.0f * XMLoadFloat4(&cb1.pointLights[0].pos));
 				mLight = XMMatrixMultiply(mLight, XMMatrixScaling(0.2f, 0.2f, 0.2f));
 				cb1.mWorld = XMMatrixTranspose(mLight);
 				cb1.solidColor = cb1.pointLights[0].col;
@@ -707,7 +802,7 @@ void LetsDrawSomeStuff::Render()
 
 
 
-				// Drawing Lantern 3
+				// Drawing Point Light 2 Lantern
 
 				// Update constant buffer
 				mLight = XMMatrixTranslationFromVector(5.0f * XMLoadFloat4(&cb1.pointLights[1].pos));
@@ -718,6 +813,83 @@ void LetsDrawSomeStuff::Render()
 				myContext->UpdateSubresource(myConstantBuffer, 0, nullptr, &cb1, 0, 0);
 
 				// Draw indexed object
+				myContext->DrawIndexed((UINT)meshes[index].indicesList.size(), 0, 0);
+			}
+
+			// Drawing the bed
+			{
+				// Find the mesh in the vector with the correct name
+				unsigned int index = 0;
+				FindMesh("Bed", index);
+
+				// Set vertex buffer in the context
+				UINT stride = sizeof(Vertex);
+				UINT offset = 0;
+				myContext->IASetVertexBuffers(0, 1, &meshes[index].vertexBuffer, &stride, &offset);
+
+				// Set index buffer
+				myContext->IASetIndexBuffer(meshes[index].indexBuffer, DXGI_FORMAT_R32_UINT, 0);
+
+				// Rotate mesh1 around the origin
+				//meshes[index].mWorld = XMMatrixRotationY(t);
+				meshes[index].mWorld = XMMatrixIdentity();
+				//meshes[index].mWorld = XMMatrixTranslation(-7.0f, 0.0f, 0.0f);
+
+				// Set primitive topology
+				myContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+				// Update constant buffer
+				cb1.mWorld = XMMatrixTranspose(meshes[index].mWorld);
+				// Send updated constant buffer
+				myContext->UpdateSubresource(myConstantBuffer, 0, nullptr, &cb1, 0, 0);
+
+				// Setup to render normal object
+				myContext->VSSetShader(myVertexShader, nullptr, 0);
+				myContext->VSSetConstantBuffers(0, 1, &myConstantBuffer);
+				myContext->PSSetShader(psDefault, nullptr, 0);
+				myContext->PSSetConstantBuffers(0, 1, &myConstantBuffer);
+				myContext->PSSetShaderResources(0, 1, &meshes[index].textureRV);
+				myContext->PSSetSamplers(0, 1, &meshes[index].samplerLinear);
+
+				// Draw indexed object
+				myContext->DrawIndexed((UINT)meshes[index].indicesList.size(), 0, 0);
+			}
+
+			// Drawing the special cube
+			{
+				// Find the mesh in the vector with the correct name
+				unsigned int index = 0;
+				FindMesh("Cube", index);
+
+				// Set vertex buffer in the context
+				UINT stride = sizeof(Vertex);
+				UINT offset = 0;
+				myContext->IASetVertexBuffers(0, 1, &meshes[index].vertexBuffer, &stride, &offset);
+
+				// Set index buffer
+				myContext->IASetIndexBuffer(meshes[index].indexBuffer, DXGI_FORMAT_R32_UINT, 0);
+
+				// Set world position
+				meshes[index].mWorld = XMMatrixMultiply(XMMatrixScaling(0.1f,0.1f,0.1f), XMMatrixRotationY(t));
+				meshes[index].mWorld = XMMatrixMultiply(meshes[index].mWorld, XMMatrixTranslation(-7.0f, sinf(t), sinf(t) * 5.0f));
+				
+
+				// Set primitive topology
+				myContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+				// Update constant buffer
+				cb1.mWorld = XMMatrixTranspose(meshes[index].mWorld);
+				// Send updated constant buffer
+				myContext->UpdateSubresource(myConstantBuffer, 0, nullptr, &cb1, 0, 0);
+
+				// Setup to render normal object
+				myContext->VSSetShader(myVertexShader, nullptr, 0);
+				myContext->VSSetConstantBuffers(0, 1, &myConstantBuffer);
+				myContext->PSSetShader(psCustomWaves, nullptr, 0);
+				myContext->PSSetConstantBuffers(0, 1, &myConstantBuffer);
+
+				// Draw indexed object
+				// myContext->DrawIndexedInstanced();
 				myContext->DrawIndexed((UINT)meshes[index].indicesList.size(), 0, 0);
 			}
 
