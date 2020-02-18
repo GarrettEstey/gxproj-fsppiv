@@ -20,6 +20,7 @@
 #include "./Shaders/Csh/PS_Default.csh"
 #include "./Shaders/Csh/PS_SolidColor.csh"
 #include "./Shaders/Csh/PS_CustomWaves.csh"
+#include "./Shaders/Csh/GS_Test.csh"
 // Other includes
 #include "lightDefines.h"
 
@@ -105,6 +106,7 @@ class LetsDrawSomeStuff
 	ID3D11PixelShader*					psDefault = nullptr;
 	ID3D11PixelShader*					psSolidColor = nullptr;
 	ID3D11PixelShader*					psCustomWaves = nullptr;
+	ID3D11GeometryShader*				gsTest = nullptr;
 
 	void FindMesh(const char* meshName, unsigned int& index);
 
@@ -625,6 +627,13 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 
 			#pragma endregion
 
+			#pragma region Geometry Shaders
+
+			myDevice->CreateGeometryShader(GS_Test, sizeof(GS_Test), nullptr, &gsTest);
+
+			#pragma endregion
+
+
 			// Input Layout
 			{
 				// Create the input layout
@@ -714,6 +723,8 @@ LetsDrawSomeStuff::~LetsDrawSomeStuff()
 	if (psCustomWaves)
 		psCustomWaves->Release();
 	
+	if (gsTest)
+		gsTest->Release();
 	
 	// Release other stuff
 	if (myVertexLayout)
@@ -924,6 +935,7 @@ void LetsDrawSomeStuff::Render()
 				myContext->VSSetConstantBuffers(0, 1, &myConstantBuffer);
 				myContext->PSSetShader(psSolidColor, nullptr, 0);
 				myContext->PSSetConstantBuffers(0, 1, &myConstantBuffer);
+				myContext->GSSetShader(nullptr, nullptr, 0);
 
 				// Draw normal object
 				myContext->Draw((UINT)meshes[index].vertexList.size(), 0);
@@ -1125,6 +1137,8 @@ void LetsDrawSomeStuff::Render()
 				myContext->VSSetConstantBuffers(0, 1, &myConstantBuffer);
 				myContext->PSSetShader(psSolidColor, nullptr, 0);
 				myContext->PSSetConstantBuffers(0, 1, &myConstantBuffer);
+				myContext->GSSetShader(gsTest, nullptr, 0);
+				myContext->GSSetConstantBuffers(0, 1, &myConstantBuffer);
 
 				// Draw normal object
 				myContext->Draw((UINT)meshes[index].vertexList.size(), 0);
