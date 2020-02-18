@@ -919,8 +919,8 @@ void LetsDrawSomeStuff::Render()
 				myContext->PSSetConstantBuffers(0, 1, &myConstantBuffer);
 
 				// Draw indexed object
-				// myContext->DrawIndexedInstanced();
-				myContext->DrawIndexed((UINT)meshes[index].indicesList.size(), 0, 0);
+				myContext->DrawIndexedInstanced((UINT)meshes[index].indicesList.size(), 3, 0, 0, 0);
+				//myContext->DrawIndexed((UINT)meshes[index].indicesList.size(), 0, 0);
 			}
 
 			// Present Backbuffer using Swapchain object
