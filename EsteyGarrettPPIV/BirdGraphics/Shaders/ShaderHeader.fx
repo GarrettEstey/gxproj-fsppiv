@@ -34,6 +34,7 @@ struct VS_INPUT
     float4 pos : POSITION;
     float3 norm : NORMAL;
     float2 tex : TEXCOORD;
+    float4 instData : INSTANCEDATA;
 };
 
 struct PS_INPUT

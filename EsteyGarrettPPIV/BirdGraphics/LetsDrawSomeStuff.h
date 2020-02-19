@@ -17,12 +17,15 @@
 // Shader includes
 #include "./Shaders/Csh/VS_Default.csh"
 #include "./Shaders/Csh/VS_Waves.csh"
+#include "./Shaders/Csh/VS_Instancing.csh"
 #include "./Shaders/Csh/PS_Default.csh"
 #include "./Shaders/Csh/PS_SolidColor.csh"
 #include "./Shaders/Csh/PS_CustomWaves.csh"
 #include "./Shaders/Csh/GS_Test.csh"
 // Other includes
 #include "lightDefines.h"
+
+#define INSTANCECOUNT 27
 
 using namespace DirectX;
 using namespace std;
@@ -73,6 +76,13 @@ namespace DrawingStuff
 		XMFLOAT4 time;
 	};
 
+	struct InstanceData
+	{
+		XMFLOAT4 translation;
+	};
+
+	InstanceData	perInstanceData[INSTANCECOUNT];
+
 	// Matrices
 	XMMATRIX		myViewMatrix;
 	XMMATRIX		myProjectionMatrix;
@@ -101,9 +111,11 @@ class LetsDrawSomeStuff
 
 	// TODO: Add your own D3D11 variables here (be sure to "Release()" them when done!)
 	ID3D11Buffer*					    myConstantBuffer = nullptr;
+	ID3D11Buffer*						cubeInstanceBuffer = nullptr;
 	ID3D11InputLayout*					myVertexLayout = nullptr;
 	ID3D11VertexShader*					vsDefault = nullptr;
 	ID3D11VertexShader*					vsWaves = nullptr;
+	ID3D11VertexShader*					vsInstancing = nullptr;
 	ID3D11PixelShader*					psDefault = nullptr;
 	ID3D11PixelShader*					psSolidColor = nullptr;
 	ID3D11PixelShader*					psCustomWaves = nullptr;
@@ -478,6 +490,37 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 				hr = myDevice->CreateBuffer(&bd, &InitData, &meshes[index].indexBuffer);
 			}
 
+			// Cube instance buffer
+			{
+				// This creates an empty buffer description object
+				D3D11_BUFFER_DESC bd = {};
+				bd.ByteWidth = sizeof(InstanceData) * INSTANCECOUNT;
+				bd.Usage = D3D11_USAGE_IMMUTABLE;
+				bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+				bd.CPUAccessFlags = 0;
+				bd.StructureByteStride = sizeof(InstanceData);
+
+				D3D11_SUBRESOURCE_DATA InitData = {};
+
+				float yVal = -5.0f;
+				for (int i = 0; i < 3; i++)
+				{
+					perInstanceData[0 + (8 * i)] = { XMFLOAT4(15.0f, yVal, -5.0f, 1.0f) };
+					perInstanceData[1 + (8 * i)] = { XMFLOAT4(15.0f, yVal, 0.0f, 1.0f) };
+					perInstanceData[2 + (8 * i)] = { XMFLOAT4(15.0f, yVal, 5.0f, 1.0f) };
+					perInstanceData[3 + (8 * i)] = { XMFLOAT4(25.0f, yVal, -5.0f, 1.0f) };
+					perInstanceData[4 + (8 * i)] = { XMFLOAT4(25.0f, yVal, 0.0f, 1.0f) };
+					perInstanceData[5 + (8 * i)] = { XMFLOAT4(25.0f, yVal, 5.0f, 1.0f) };
+					perInstanceData[6 + (8 * i)] = { XMFLOAT4(20.0f, yVal, -5.0f, 1.0f) };
+					perInstanceData[7 + (8 * i)] = { XMFLOAT4(20.0f, yVal, 0.0f, 1.0f) };
+					perInstanceData[8 + (8 * i)] = { XMFLOAT4(20.0f, yVal, 5.0f, 1.0f) };
+					yVal += 5.0f;
+				}
+
+				InitData.pSysMem = perInstanceData;
+				myDevice->CreateBuffer(&bd, &InitData, &cubeInstanceBuffer);
+			}
+
 			// Palm Tree Buffers
 			{
 				// Find the mesh in the vector with the correct name
@@ -618,6 +661,7 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 
 			myDevice->CreateVertexShader(VS_Default, sizeof(VS_Default), nullptr, &vsDefault);
 			myDevice->CreateVertexShader(VS_Waves, sizeof(VS_Waves), nullptr, &vsWaves);
+			myDevice->CreateVertexShader(VS_Instancing, sizeof(VS_Instancing), nullptr, &vsInstancing);
 
 			#pragma endregion
 
@@ -641,9 +685,10 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 				// Create the input layout
 				const D3D11_INPUT_ELEMENT_DESC inputElementDesc[] =
 				{
-					{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-					{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-					{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 }
+					{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+					{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+					{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+					{ "INSTANCEDATA", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 0, D3D11_INPUT_PER_INSTANCE_DATA, 1 }
 				};
 				// Grab the size of the layout dynamically, in case it's changed. This size is required to create the layout on the device
 				UINT elements = ARRAYSIZE(inputElementDesc);
@@ -699,6 +744,8 @@ LetsDrawSomeStuff::~LetsDrawSomeStuff()
 	// Release buffers
 	if (myConstantBuffer)
 		myConstantBuffer->Release();
+	if (cubeInstanceBuffer)
+		cubeInstanceBuffer->Release();
 	
 	for each (Mesh var in meshes)
 	{
@@ -717,6 +764,8 @@ LetsDrawSomeStuff::~LetsDrawSomeStuff()
 		vsDefault->Release();
 	if (vsWaves)
 		vsWaves->Release();
+	if (vsInstancing)
+		vsInstancing->Release();
 
 	if (psDefault)
 		psDefault->Release();
@@ -899,6 +948,9 @@ void LetsDrawSomeStuff::Render()
 			cb1.pointLights[1].pos = XMFLOAT4(0.0f, 2.5f, 0.0f, 1.0f);
 			cb1.pointLights[1].rad = XMFLOAT4(10.0f, 0.0f, 0.0f, 1.0f);
 
+			// 
+			
+
 			// Unsigned int used to point to meshes in the vector of meshes
 			unsigned int meshIndex = 0;
 
@@ -958,6 +1010,33 @@ void LetsDrawSomeStuff::Render()
 				meshes[meshIndex].mWorld = XMMatrixMultiply(XMMatrixScaling(0.1f, 0.1f, 0.1f), XMMatrixRotationY(t));
 				meshes[meshIndex].mWorld = XMMatrixMultiply(meshes[meshIndex].mWorld, XMMatrixTranslation(-7.0f, 0.0f, sinf(t * 1.337) * 5.0f));
 				BasicDrawIndexed(meshIndex, cb1, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, vsDefault, psCustomWaves, nullptr);
+			}
+
+			// Drawing special cube instances
+			{
+				FindMesh("Cube", meshIndex);
+				// Set up the vertex buffers. We have 2 streams:
+				// Stream 1 contains per-primitive vertices defining the cubes.
+				// Stream 2 contains the per-instance data for scale, position and orientation
+				UINT Strides[] = { sizeof(Vertex), sizeof(InstanceData) };
+				UINT Offsets[] = { 0, 0 };
+				ID3D11Buffer* Buffers[] = {meshes[meshIndex].vertexBuffer, cubeInstanceBuffer };
+				myContext->IASetVertexBuffers(0, _countof(Strides), Buffers, Strides, Offsets);
+
+				myContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+				myContext->IASetIndexBuffer(meshes[meshIndex].indexBuffer, DXGI_FORMAT_R32_UINT, 0);
+
+				myContext->VSSetShader(vsInstancing, nullptr, 0);
+				myContext->VSSetConstantBuffers(0, 1, &myConstantBuffer);
+				myContext->PSSetShader(psCustomWaves, nullptr, 0);
+				myContext->PSSetConstantBuffers(0, 1, &myConstantBuffer);
+				myContext->PSSetShaderResources(0, 1, &meshes[meshIndex].textureRV);
+				myContext->PSSetSamplers(0, 1, &meshes[meshIndex].samplerLinear);
+				myContext->GSSetShader(nullptr, nullptr, 0);
+				myContext->GSSetConstantBuffers(0, 1, &myConstantBuffer);
+
+				myContext->DrawIndexedInstanced(meshes[meshIndex].indicesList.size(), INSTANCECOUNT, 0, 0, 0);
 			}
 
 			// Drawing the point grid as squares using the geometry shader
@@ -1057,7 +1136,7 @@ void LetsDrawSomeStuff::BasicDrawIndexed(unsigned int index, ConstantBuffer cb, 
 	// Send updated constant buffer
 	myContext->UpdateSubresource(myConstantBuffer, 0, nullptr, &cb, 0, 0);
 
-	// Setup to render normal object
+	// Setup shaders
 	myContext->VSSetShader(vShader, nullptr, 0);
 	myContext->VSSetConstantBuffers(0, 1, &myConstantBuffer);
 	myContext->PSSetShader(pShader, nullptr, 0);
