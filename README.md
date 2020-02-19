@@ -11,3 +11,5 @@ W/S - Move forwards/backwards
 SPACE/LCTRL - Move up/down
 Mouse - Look 
 R - Reset the camera
+
+G - Activate/Deactivate the test geometry shader, which will turn the yellow point into two faced quads

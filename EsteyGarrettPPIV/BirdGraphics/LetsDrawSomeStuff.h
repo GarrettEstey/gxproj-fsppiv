@@ -84,6 +84,7 @@ namespace DrawingStuff
 	POINT			oldCursorPos;
 	bool			cameraPaused = false;
 	int				inputDelay = 0;
+	bool			testGeoShader = false;
 };
 
 using namespace DrawingStuff;
@@ -108,11 +109,11 @@ class LetsDrawSomeStuff
 	ID3D11PixelShader*					psCustomWaves = nullptr;
 	ID3D11GeometryShader*				gsTest = nullptr;
 
+	// Function definitions
 	void FindMesh(const char* meshName, unsigned int& index);
-	void LetsDrawSomeStuff::BasicDrawIndexed(unsigned int index, ConstantBuffer cb, D3D_PRIMITIVE_TOPOLOGY topology, ID3D11VertexShader* vShader, ID3D11PixelShader* pShader, ID3D11GeometryShader* gShader);
-	void LetsDrawSomeStuff::BasicDraw(unsigned int index, ConstantBuffer cb, D3D_PRIMITIVE_TOPOLOGY topology, ID3D11VertexShader* vShader, ID3D11PixelShader* pShader, ID3D11GeometryShader* gShader);
+	void BasicDrawIndexed(unsigned int index, ConstantBuffer cb, D3D_PRIMITIVE_TOPOLOGY topology, ID3D11VertexShader* vShader, ID3D11PixelShader* pShader, ID3D11GeometryShader* gShader);
+	void BasicDraw(unsigned int index, ConstantBuffer cb, D3D_PRIMITIVE_TOPOLOGY topology, ID3D11VertexShader* vShader, ID3D11PixelShader* pShader, ID3D11GeometryShader* gShader);
 	void LoadMesh(const char* meshFileName, Mesh& mesh);
-
 
 public:
 	// Init
@@ -121,8 +122,6 @@ public:
 	~LetsDrawSomeStuff();
 	// Draw
 	void Render();
-	// Load mesh
-	
 };
 
 // Init
@@ -787,6 +786,11 @@ void LetsDrawSomeStuff::Render()
 					cameraPaused = !cameraPaused;
 					inputDelay = 250;
 				}
+				if (GetAsyncKeyState('G') && inputDelay == 0)
+				{
+					testGeoShader = !testGeoShader;
+					inputDelay = 250;
+				}
 				if (GetAsyncKeyState(0x52))
 				{
 					// Initialize the view matrix
@@ -828,13 +832,13 @@ void LetsDrawSomeStuff::Render()
 					if (GetAsyncKeyState(VK_SPACE))
 					{
 						XMMATRIX transl = XMMatrixTranslation(0.0f, moveSpeed, 0.0f);
-						myViewMatrix = XMMatrixMultiply(myViewMatrix, transl);
+						myViewMatrix = XMMatrixMultiply(transl, myViewMatrix);
 					}
 					// Move down using CTRL
 					if (GetAsyncKeyState(VK_CONTROL))
 					{
 						XMMATRIX transl = XMMatrixTranslation(0.0f, -moveSpeed, 0.0f);
-						myViewMatrix = XMMatrixMultiply(myViewMatrix, transl);
+						myViewMatrix = XMMatrixMultiply(transl, myViewMatrix);
 					}
 					// Rotate based on cursor position
 					if (xDiff != 0)
@@ -952,15 +956,20 @@ void LetsDrawSomeStuff::Render()
 			{
 				FindMesh("Cube", meshIndex);
 				meshes[meshIndex].mWorld = XMMatrixMultiply(XMMatrixScaling(0.1f, 0.1f, 0.1f), XMMatrixRotationY(t));
-				meshes[meshIndex].mWorld = XMMatrixMultiply(meshes[meshIndex].mWorld, XMMatrixTranslation(-7.0f, sinf(t), sinf(t) * 5.0f));
+				meshes[meshIndex].mWorld = XMMatrixMultiply(meshes[meshIndex].mWorld, XMMatrixTranslation(-7.0f, 0.0f, sinf(t * 1.337) * 5.0f));
 				BasicDrawIndexed(meshIndex, cb1, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, vsDefault, psCustomWaves, nullptr);
 			}
 
-			// Drawing the point grid as stars using the geometry shader
+			// Drawing the point grid as squares using the geometry shader
 			{
 				FindMesh("PointGrid", meshIndex);
 				cb1.solidColor = XMFLOAT4(1.0f, 0.7f, 0.0f, 1.0f);
-				BasicDraw(meshIndex, cb1, D3D11_PRIMITIVE_TOPOLOGY_POINTLIST, vsDefault, psSolidColor, gsTest);
+				// If the geometry shader is enabled, call draw with the geo shader
+				if (testGeoShader)
+					BasicDraw(meshIndex, cb1, D3D11_PRIMITIVE_TOPOLOGY_POINTLIST, vsDefault, psSolidColor, gsTest);
+				// Otherwise, call it without
+				else
+					BasicDraw(meshIndex, cb1, D3D11_PRIMITIVE_TOPOLOGY_POINTLIST, vsDefault, psSolidColor, nullptr);
 			}
 
 			// Present Backbuffer using Swapchain object
@@ -973,6 +982,7 @@ void LetsDrawSomeStuff::Render()
 	}
 }
 
+// Loads a mesh from a given file path
 void LetsDrawSomeStuff::LoadMesh(const char* meshFileName, Mesh& mesh)
 {
 	std::fstream file{ meshFileName, std::ios_base::in | std::ios_base::binary };
@@ -1014,6 +1024,7 @@ void LetsDrawSomeStuff::LoadMesh(const char* meshFileName, Mesh& mesh)
 	file.close();
 }
 
+// Finds a mesh in the Mesh vector "meshes"
 void LetsDrawSomeStuff::FindMesh(const char* meshName, unsigned int& index)
 {
 	index = 0;
@@ -1027,6 +1038,7 @@ void LetsDrawSomeStuff::FindMesh(const char* meshName, unsigned int& index)
 	}
 }
 
+// Calls DrawIndexed with given parameters
 void LetsDrawSomeStuff::BasicDrawIndexed(unsigned int index, ConstantBuffer cb, D3D_PRIMITIVE_TOPOLOGY topology, ID3D11VertexShader* vShader, ID3D11PixelShader* pShader, ID3D11GeometryShader* gShader)
 {
 	// Set vertex buffer in the context
@@ -1059,6 +1071,7 @@ void LetsDrawSomeStuff::BasicDrawIndexed(unsigned int index, ConstantBuffer cb, 
 	myContext->DrawIndexed((UINT)meshes[index].indicesList.size(), 0, 0);
 }
 
+// Calls Draw with given parameters
 void LetsDrawSomeStuff::BasicDraw(unsigned int index, ConstantBuffer cb, D3D_PRIMITIVE_TOPOLOGY topology, ID3D11VertexShader* vShader, ID3D11PixelShader* pShader, ID3D11GeometryShader* gShader)
 {
 	// Set vertex buffer in the context
