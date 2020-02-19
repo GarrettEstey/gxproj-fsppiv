@@ -109,6 +109,10 @@ class LetsDrawSomeStuff
 	ID3D11GeometryShader*				gsTest = nullptr;
 
 	void FindMesh(const char* meshName, unsigned int& index);
+	void LetsDrawSomeStuff::BasicDrawIndexed(unsigned int index, ConstantBuffer cb, D3D_PRIMITIVE_TOPOLOGY topology, ID3D11VertexShader* vShader, ID3D11PixelShader* pShader, ID3D11GeometryShader* gShader);
+	void LetsDrawSomeStuff::BasicDraw(unsigned int index, ConstantBuffer cb, D3D_PRIMITIVE_TOPOLOGY topology, ID3D11VertexShader* vShader, ID3D11PixelShader* pShader, ID3D11GeometryShader* gShader);
+	void LoadMesh(const char* meshFileName, Mesh& mesh);
+
 
 public:
 	// Init
@@ -118,7 +122,7 @@ public:
 	// Draw
 	void Render();
 	// Load mesh
-	void LoadMesh(const char* meshFileName, Mesh& mesh);
+	
 };
 
 // Init
@@ -237,13 +241,12 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 				meshes.push_back(myMesh);
 			}
 
-
 			// PointGrid mesh creation
 			{
 				// Setup mesh to be used to load in meshes
 				Mesh myMesh;
 				// Initialize the world matrix for this mesh
-				myMesh.mWorld = XMMatrixTranslation(0.0f, -1.0f, 0.0f);
+				myMesh.mWorld = XMMatrixTranslation(0.0f, -5.0f, 0.0f);
 
 				// Set mesh name
 				myMesh.name = "PointGrid";
@@ -892,6 +895,9 @@ void LetsDrawSomeStuff::Render()
 			cb1.pointLights[1].pos = XMFLOAT4(0.0f, 2.5f, 0.0f, 1.0f);
 			cb1.pointLights[1].rad = XMFLOAT4(10.0f, 0.0f, 0.0f, 1.0f);
 
+			// Unsigned int used to point to meshes in the vector of meshes
+			unsigned int meshIndex = 0;
+
 			// Move lights
 			{
 				// Rotate the yellow point light around the origin
@@ -909,239 +915,52 @@ void LetsDrawSomeStuff::Render()
 
 			// Drawing the grid
 			{
-				// Find the mesh in the vector with the correct name
-				unsigned int index = 0;
-				FindMesh("Grid", index);
-
-				// Set vertex buffer in the context
-				UINT stride = sizeof(Vertex);
-				UINT offset = 0;
-				myContext->IASetVertexBuffers(0, 1, &meshes[index].vertexBuffer, &stride, &offset);
-
-				// Set index buffer in the context
-				myContext->IASetIndexBuffer(nullptr, DXGI_FORMAT_R32_UINT, 0);
-
-				// Set primitive topology
-				myContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
-
-				// Update constant buffer
-				cb1.mWorld = XMMatrixTranspose(meshes[index].mWorld);
+				FindMesh("Grid", meshIndex);
 				cb1.solidColor = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-				// Send updated constant buffer
-				myContext->UpdateSubresource(myConstantBuffer, 0, nullptr, &cb1, 0, 0);
-
-				// Setup to render normal object
-				myContext->VSSetShader(vsWaves, nullptr, 0);
-				myContext->VSSetConstantBuffers(0, 1, &myConstantBuffer);
-				myContext->PSSetShader(psSolidColor, nullptr, 0);
-				myContext->PSSetConstantBuffers(0, 1, &myConstantBuffer);
-				myContext->GSSetShader(nullptr, nullptr, 0);
-
-				// Draw normal object
-				myContext->Draw((UINT)meshes[index].vertexList.size(), 0);
+				BasicDraw(meshIndex, cb1, D3D11_PRIMITIVE_TOPOLOGY_LINELIST, vsWaves, psSolidColor, nullptr);
 			}
 
 			// Drawing Lanterns
 			{
-				// Set up to draw lanterns
-
-				// Find the mesh in the vector with the correct name
-				unsigned int index = 0;
-				FindMesh("Lantern", index);
-
-				// Set vertex buffer in the context
-				UINT stride = sizeof(Vertex);
-				UINT offset = 0;
-				myContext->IASetVertexBuffers(0, 1, &meshes[index].vertexBuffer, &stride, &offset);
-
-				// Set index buffer
-				myContext->IASetIndexBuffer(meshes[index].indexBuffer, DXGI_FORMAT_R32_UINT, 0);
-
-				// Set primitive topology
-				myContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-				// Setup to render normal object
-				myContext->VSSetShader(vsDefault, nullptr, 0);
-				myContext->VSSetConstantBuffers(0, 1, &myConstantBuffer);
-				myContext->PSSetShader(psSolidColor, nullptr, 0);
-				myContext->PSSetConstantBuffers(0, 1, &myConstantBuffer);
-
-				// Drawing Point Light 1 Lantern
-
-				// Update constant buffer
+				FindMesh("Lantern", meshIndex);
+				// Lantern 1
 				XMMATRIX mLight = XMMatrixTranslationFromVector(5.0f * XMLoadFloat4(&cb1.pointLights[0].pos));
-				mLight = XMMatrixMultiply(mLight, XMMatrixScaling(0.2f, 0.2f, 0.2f));
-				cb1.mWorld = XMMatrixTranspose(mLight);
+				meshes[meshIndex].mWorld = XMMatrixMultiply(mLight, XMMatrixScaling(0.2f, 0.2f, 0.2f));
 				cb1.solidColor = cb1.pointLights[0].col;
-				// Send updated constant buffer
-				myContext->UpdateSubresource(myConstantBuffer, 0, nullptr, &cb1, 0, 0);
-
-				// Draw indexed object
-				myContext->DrawIndexed((UINT)meshes[index].indicesList.size(), 0, 0);
-
-
-
-				// Drawing Point Light 2 Lantern
-
-				// Update constant buffer
+				BasicDrawIndexed(meshIndex, cb1, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, vsDefault, psSolidColor, nullptr);
+				// Lantern 2
 				mLight = XMMatrixTranslationFromVector(5.0f * XMLoadFloat4(&cb1.pointLights[1].pos));
-				mLight = XMMatrixMultiply(mLight, XMMatrixScaling(0.2f, 0.2f, 0.2f));
-				cb1.mWorld = XMMatrixTranspose(mLight);
+				meshes[meshIndex].mWorld = XMMatrixMultiply(mLight, XMMatrixScaling(0.2f, 0.2f, 0.2f));
 				cb1.solidColor = cb1.pointLights[1].col;
-				// Send updated constant buffer
-				myContext->UpdateSubresource(myConstantBuffer, 0, nullptr, &cb1, 0, 0);
-
-				// Draw indexed object
-				myContext->DrawIndexed((UINT)meshes[index].indicesList.size(), 0, 0);
+				BasicDrawIndexed(meshIndex, cb1, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, vsDefault, psSolidColor, nullptr);
 			}
 
 			// Drawing the bed
 			{
-				// Find the mesh in the vector with the correct name
-				unsigned int index = 0;
-				FindMesh("Bed", index);
-
-				// Set vertex buffer in the context
-				UINT stride = sizeof(Vertex);
-				UINT offset = 0;
-				myContext->IASetVertexBuffers(0, 1, &meshes[index].vertexBuffer, &stride, &offset);
-
-				// Set index buffer
-				myContext->IASetIndexBuffer(meshes[index].indexBuffer, DXGI_FORMAT_R32_UINT, 0);
-
-				// Rotate mesh1 around the origin
-				//meshes[index].mWorld = XMMatrixRotationY(t);
-				meshes[index].mWorld = XMMatrixIdentity();
-				//meshes[index].mWorld = XMMatrixTranslation(-7.0f, 0.0f, 0.0f);
-
-				// Set primitive topology
-				myContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-				// Update constant buffer
-				cb1.mWorld = XMMatrixTranspose(meshes[index].mWorld);
-				// Send updated constant buffer
-				myContext->UpdateSubresource(myConstantBuffer, 0, nullptr, &cb1, 0, 0);
-
-				// Setup to render normal object
-				myContext->VSSetShader(vsDefault, nullptr, 0);
-				myContext->VSSetConstantBuffers(0, 1, &myConstantBuffer);
-				myContext->PSSetShader(psDefault, nullptr, 0);
-				myContext->PSSetConstantBuffers(0, 1, &myConstantBuffer);
-				myContext->PSSetShaderResources(0, 1, &meshes[index].textureRV);
-				myContext->PSSetSamplers(0, 1, &meshes[index].samplerLinear);
-
-				// Draw indexed object
-				myContext->DrawIndexed((UINT)meshes[index].indicesList.size(), 0, 0);
+				FindMesh("Bed", meshIndex);
+				BasicDrawIndexed(meshIndex, cb1, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, vsDefault, psDefault, nullptr);
 			}
 
 			// Drawing the chest
 			{
-				// Find the mesh in the vector with the correct name
-				unsigned int index = 0;
-				FindMesh("Chest", index);
-
-				// Set vertex buffer in the context
-				UINT stride = sizeof(Vertex);
-				UINT offset = 0;
-				myContext->IASetVertexBuffers(0, 1, &meshes[index].vertexBuffer, &stride, &offset);
-
-				// Set index buffer
-				myContext->IASetIndexBuffer(meshes[index].indexBuffer, DXGI_FORMAT_R32_UINT, 0);
-
-				// Rotate mesh1 around the origin
-				meshes[index].mWorld = XMMatrixTranslation(0.0f, 0.0f, 6.0f);
-
-				// Set primitive topology
-				myContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-				// Update constant buffer
-				cb1.mWorld = XMMatrixTranspose(meshes[index].mWorld);
-				// Send updated constant buffer
-				myContext->UpdateSubresource(myConstantBuffer, 0, nullptr, &cb1, 0, 0);
-
-				// Setup to render normal object
-				myContext->VSSetShader(vsDefault, nullptr, 0);
-				myContext->VSSetConstantBuffers(0, 1, &myConstantBuffer);
-				myContext->PSSetShader(psDefault, nullptr, 0);
-				myContext->PSSetConstantBuffers(0, 1, &myConstantBuffer);
-				myContext->PSSetShaderResources(0, 1, &meshes[index].textureRV);
-				myContext->PSSetSamplers(0, 1, &meshes[index].samplerLinear);
-
-				// Draw indexed object
-				myContext->DrawIndexed((UINT)meshes[index].indicesList.size(), 0, 0);
+				FindMesh("Chest", meshIndex);
+				meshes[meshIndex].mWorld = XMMatrixTranslation(0.0f, 0.0f, 6.0f);
+				BasicDrawIndexed(meshIndex, cb1, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, vsDefault, psDefault, nullptr);
 			}
 
 			// Drawing the special cube
 			{
-				// Find the mesh in the vector with the correct name
-				unsigned int index = 0;
-				FindMesh("Cube", index);
-
-				// Set vertex buffer in the context
-				UINT stride = sizeof(Vertex);
-				UINT offset = 0;
-				myContext->IASetVertexBuffers(0, 1, &meshes[index].vertexBuffer, &stride, &offset);
-
-				// Set index buffer
-				myContext->IASetIndexBuffer(meshes[index].indexBuffer, DXGI_FORMAT_R32_UINT, 0);
-
-				// Set world position
-				meshes[index].mWorld = XMMatrixMultiply(XMMatrixScaling(0.1f,0.1f,0.1f), XMMatrixRotationY(t));
-				meshes[index].mWorld = XMMatrixMultiply(meshes[index].mWorld, XMMatrixTranslation(-7.0f, sinf(t), sinf(t) * 5.0f));
-				
-
-				// Set primitive topology
-				myContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-				// Update constant buffer
-				cb1.mWorld = XMMatrixTranspose(meshes[index].mWorld);
-				// Send updated constant buffer
-				myContext->UpdateSubresource(myConstantBuffer, 0, nullptr, &cb1, 0, 0);
-
-				// Setup to render normal object
-				myContext->VSSetShader(vsDefault, nullptr, 0);
-				myContext->VSSetConstantBuffers(0, 1, &myConstantBuffer);
-				myContext->PSSetShader(psCustomWaves, nullptr, 0);
-				myContext->PSSetConstantBuffers(0, 1, &myConstantBuffer);
-
-				// Draw indexed object
-				myContext->DrawIndexedInstanced((UINT)meshes[index].indicesList.size(), 3, 0, 0, 0);
-				//myContext->DrawIndexed((UINT)meshes[index].indicesList.size(), 0, 0);
+				FindMesh("Cube", meshIndex);
+				meshes[meshIndex].mWorld = XMMatrixMultiply(XMMatrixScaling(0.1f, 0.1f, 0.1f), XMMatrixRotationY(t));
+				meshes[meshIndex].mWorld = XMMatrixMultiply(meshes[meshIndex].mWorld, XMMatrixTranslation(-7.0f, sinf(t), sinf(t) * 5.0f));
+				BasicDrawIndexed(meshIndex, cb1, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, vsDefault, psCustomWaves, nullptr);
 			}
 
-			// Drawing the point grid
+			// Drawing the point grid as stars using the geometry shader
 			{
-				// Find the mesh in the vector with the correct name
-				unsigned int index = 0;
-				FindMesh("PointGrid", index);
-
-				// Set vertex buffer in the context
-				UINT stride = sizeof(Vertex);
-				UINT offset = 0;
-				myContext->IASetVertexBuffers(0, 1, &meshes[index].vertexBuffer, &stride, &offset);
-
-				// Set index buffer in the context
-				myContext->IASetIndexBuffer(nullptr, DXGI_FORMAT_R32_UINT, 0);
-
-				// Set primitive topology
-				myContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
-
-				// Update constant buffer
-				cb1.mWorld = XMMatrixTranspose(meshes[index].mWorld);
-				cb1.solidColor = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-				// Send updated constant buffer
-				myContext->UpdateSubresource(myConstantBuffer, 0, nullptr, &cb1, 0, 0);
-
-				// Setup to render normal object
-				myContext->VSSetShader(vsDefault, nullptr, 0);
-				myContext->VSSetConstantBuffers(0, 1, &myConstantBuffer);
-				myContext->PSSetShader(psSolidColor, nullptr, 0);
-				myContext->PSSetConstantBuffers(0, 1, &myConstantBuffer);
-				myContext->GSSetShader(gsTest, nullptr, 0);
-				myContext->GSSetConstantBuffers(0, 1, &myConstantBuffer);
-
-				// Draw normal object
-				myContext->Draw((UINT)meshes[index].vertexList.size(), 0);
+				FindMesh("PointGrid", meshIndex);
+				cb1.solidColor = XMFLOAT4(1.0f, 0.7f, 0.0f, 1.0f);
+				BasicDraw(meshIndex, cb1, D3D11_PRIMITIVE_TOPOLOGY_POINTLIST, vsDefault, psSolidColor, gsTest);
 			}
 
 			// Present Backbuffer using Swapchain object
@@ -1206,4 +1025,68 @@ void LetsDrawSomeStuff::FindMesh(const char* meshName, unsigned int& index)
 		}
 		index++;
 	}
+}
+
+void LetsDrawSomeStuff::BasicDrawIndexed(unsigned int index, ConstantBuffer cb, D3D_PRIMITIVE_TOPOLOGY topology, ID3D11VertexShader* vShader, ID3D11PixelShader* pShader, ID3D11GeometryShader* gShader)
+{
+	// Set vertex buffer in the context
+	UINT stride = sizeof(Vertex);
+	UINT offset = 0;
+	myContext->IASetVertexBuffers(0, 1, &meshes[index].vertexBuffer, &stride, &offset);
+
+	// Set index buffer
+	myContext->IASetIndexBuffer(meshes[index].indexBuffer, DXGI_FORMAT_R32_UINT, 0);
+
+	// Set primitive topology
+	myContext->IASetPrimitiveTopology(topology);
+
+	// Update constant buffer
+	cb.mWorld = XMMatrixTranspose(meshes[index].mWorld);
+	// Send updated constant buffer
+	myContext->UpdateSubresource(myConstantBuffer, 0, nullptr, &cb, 0, 0);
+
+	// Setup to render normal object
+	myContext->VSSetShader(vShader, nullptr, 0);
+	myContext->VSSetConstantBuffers(0, 1, &myConstantBuffer);
+	myContext->PSSetShader(pShader, nullptr, 0);
+	myContext->PSSetConstantBuffers(0, 1, &myConstantBuffer);
+	myContext->PSSetShaderResources(0, 1, &meshes[index].textureRV);
+	myContext->PSSetSamplers(0, 1, &meshes[index].samplerLinear);
+	myContext->GSSetShader(gShader, nullptr, 0);
+	myContext->GSSetConstantBuffers(0, 1, &myConstantBuffer);
+
+	// Draw indexed object
+	myContext->DrawIndexed((UINT)meshes[index].indicesList.size(), 0, 0);
+}
+
+void LetsDrawSomeStuff::BasicDraw(unsigned int index, ConstantBuffer cb, D3D_PRIMITIVE_TOPOLOGY topology, ID3D11VertexShader* vShader, ID3D11PixelShader* pShader, ID3D11GeometryShader* gShader)
+{
+	// Set vertex buffer in the context
+	UINT stride = sizeof(Vertex);
+	UINT offset = 0;
+	myContext->IASetVertexBuffers(0, 1, &meshes[index].vertexBuffer, &stride, &offset);
+
+	// Set primitive topology
+	myContext->IASetPrimitiveTopology(topology);
+
+	// Set index buffer in the context
+	myContext->IASetIndexBuffer(nullptr, DXGI_FORMAT_R32_UINT, 0);
+
+	// Update constant buffer
+	cb.mWorld = XMMatrixTranspose(meshes[index].mWorld);
+	// Send updated constant buffer
+	myContext->UpdateSubresource(myConstantBuffer, 0, nullptr, &cb, 0, 0);
+
+	// Setup to render normal object
+	myContext->VSSetShader(vShader, nullptr, 0);
+	myContext->VSSetConstantBuffers(0, 1, &myConstantBuffer);
+	myContext->PSSetShader(pShader, nullptr, 0);
+	myContext->PSSetConstantBuffers(0, 1, &myConstantBuffer);
+	myContext->PSSetShaderResources(0, 1, &meshes[index].textureRV);
+	myContext->PSSetSamplers(0, 1, &meshes[index].samplerLinear);
+	myContext->GSSetShader(gShader, nullptr, 0);
+	myContext->GSSetConstantBuffers(0, 1, &myConstantBuffer);
+
+	// Draw indexed object
+	myContext->Draw((UINT)meshes[index].vertexList.size(), 0);
 }
