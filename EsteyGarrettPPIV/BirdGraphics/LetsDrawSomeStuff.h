@@ -30,8 +30,8 @@
 using namespace DirectX;
 using namespace std;
 
-namespace DrawingStuff
-{
+//namespace DrawingStuff
+//{
 	// Structs
 	struct Vertex
 	{
@@ -95,9 +95,9 @@ namespace DrawingStuff
 	bool			cameraPaused = false;
 	int				inputDelay = 0;
 	bool			testGeoShader = false;
-};
+//};
 
-using namespace DrawingStuff;
+//using namespace DrawingStuff;
 
 // Simple Container class to make life easier/cleaner
 class LetsDrawSomeStuff
@@ -503,18 +503,20 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 				D3D11_SUBRESOURCE_DATA InitData = {};
 
 				float yVal = -5.0f;
+				unsigned int iMod = 0;
 				for (int i = 0; i < 3; i++)
 				{
-					perInstanceData[0 + (8 * i)] = { XMFLOAT4(15.0f, yVal, -5.0f, 1.0f) };
-					perInstanceData[1 + (8 * i)] = { XMFLOAT4(15.0f, yVal, 0.0f, 1.0f) };
-					perInstanceData[2 + (8 * i)] = { XMFLOAT4(15.0f, yVal, 5.0f, 1.0f) };
-					perInstanceData[3 + (8 * i)] = { XMFLOAT4(25.0f, yVal, -5.0f, 1.0f) };
-					perInstanceData[4 + (8 * i)] = { XMFLOAT4(25.0f, yVal, 0.0f, 1.0f) };
-					perInstanceData[5 + (8 * i)] = { XMFLOAT4(25.0f, yVal, 5.0f, 1.0f) };
-					perInstanceData[6 + (8 * i)] = { XMFLOAT4(20.0f, yVal, -5.0f, 1.0f) };
-					perInstanceData[7 + (8 * i)] = { XMFLOAT4(20.0f, yVal, 0.0f, 1.0f) };
-					perInstanceData[8 + (8 * i)] = { XMFLOAT4(20.0f, yVal, 5.0f, 1.0f) };
+					perInstanceData[0 + iMod] = { XMFLOAT4(15.0f, yVal, -5.0f, 1.0f) };
+					perInstanceData[1 + iMod] = { XMFLOAT4(15.0f, yVal, 0.0f, 1.0f) };
+					perInstanceData[2 + iMod] = { XMFLOAT4(15.0f, yVal, 5.0f, 1.0f) };
+					perInstanceData[3 + iMod] = { XMFLOAT4(25.0f, yVal, -5.0f, 1.0f) };
+					perInstanceData[4 + iMod] = { XMFLOAT4(25.0f, yVal, 0.0f, 1.0f) };
+					perInstanceData[5 + iMod] = { XMFLOAT4(25.0f, yVal, 5.0f, 1.0f) };
+					perInstanceData[6 + iMod] = { XMFLOAT4(20.0f, yVal, -5.0f, 1.0f) };
+					perInstanceData[7 + iMod] = { XMFLOAT4(20.0f, yVal, 0.0f, 1.0f) };
+					perInstanceData[8 + iMod] = { XMFLOAT4(20.0f, yVal, 5.0f, 1.0f) };
 					yVal += 5.0f;
+					iMod += 9;
 				}
 
 				InitData.pSysMem = perInstanceData;
