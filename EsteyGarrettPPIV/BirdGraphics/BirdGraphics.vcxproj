@@ -148,7 +148,20 @@
     <ClInclude Include="LetsDrawSomeStuff.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\Gateware\Source\G_Audio\GAudio.cpp" />
     <ClCompile Include="..\..\Gateware\Source\G_Graphics\GDirectX11Surface.cpp" />
+    <ClCompile Include="..\..\Gateware\Source\G_Graphics\GOpenGLSurface.cpp" />
+    <ClCompile Include="..\..\Gateware\Source\G_Math\GMatrix.cpp" />
+    <ClCompile Include="..\..\Gateware\Source\G_Math\GQuaternion.cpp" />
+    <ClCompile Include="..\..\Gateware\Source\G_Math\GVector.cpp" />
+    <ClCompile Include="..\..\Gateware\Source\G_System\GBI_Callback.cpp" />
+    <ClCompile Include="..\..\Gateware\Source\G_System\GBufferedInput.cpp" />
+    <ClCompile Include="..\..\Gateware\Source\G_System\GController.cpp" />
+    <ClCompile Include="..\..\Gateware\Source\G_System\GFile.cpp" />
+    <ClCompile Include="..\..\Gateware\Source\G_System\GInput.cpp" />
+    <ClCompile Include="..\..\Gateware\Source\G_System\GI_Callback.cpp" />
+    <ClCompile Include="..\..\Gateware\Source\G_System\GI_Static.cpp" />
+    <ClCompile Include="..\..\Gateware\Source\G_System\GLog.cpp" />
     <ClCompile Include="..\..\Gateware\Source\G_System\GWindow.cpp" />
     <ClCompile Include="DDSTextureLoader.cpp" />
     <ClCompile Include="main.cpp" />
