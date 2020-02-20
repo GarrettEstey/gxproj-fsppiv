@@ -84,17 +84,21 @@ using namespace std;
 	InstanceData	perInstanceData[INSTANCECOUNT];
 
 	// Matrices
-	XMMATRIX		myViewMatrix;
-	XMMATRIX		myProjectionMatrix;
+	XMMATRIX		vp1ViewMatrix;
+	XMMATRIX		vp1ProjectionMatrix;
+	XMMATRIX		vp2ViewMatrix;
+	XMMATRIX		vp2ProjectionMatrix;
 
 	// Meshes
 	vector<Mesh>	meshes;
 
-	// Camera Controls
+	// Control variables
 	POINT			oldCursorPos;
 	bool			cameraPaused = false;
 	int				inputDelay = 0;
 	bool			testGeoShader = false;
+	unsigned int	testSceneVp = 0;
+	unsigned int	spaceSceneVp = 1;
 //};
 
 //using namespace DrawingStuff;
@@ -120,6 +124,8 @@ class LetsDrawSomeStuff
 	ID3D11PixelShader*					psSolidColor = nullptr;
 	ID3D11PixelShader*					psCustomWaves = nullptr;
 	ID3D11GeometryShader*				gsTest = nullptr;
+	D3D11_VIEWPORT*						viewPorts = nullptr;
+
 
 	// Function definitions
 	void FindMesh(const char* meshName, unsigned int& index);
@@ -714,19 +720,45 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 
 			#pragma endregion
 
-			// Set up matrices
+			// Set viewports
 			{
+				// Large viewport
+
 				// Initialize the view matrix
 				XMMATRIX transl = XMMatrixTranslation(0.0f, 3.0f, -10.0f);
-				//myViewMatrix = XMMatrixLookAtLH(Eye, At, Up);
-				myViewMatrix = XMMatrixMultiply(XMMatrixIdentity(), transl);
+				//vp1ViewMatrix = XMMatrixLookAtLH(Eye, At, Up);
+				vp1ViewMatrix = XMMatrixMultiply(XMMatrixIdentity(), transl);
 
 				// Initialize the projection matrix
 				UINT height;
 				UINT width;
 				attatchPoint->GetClientHeight(height);
 				attatchPoint->GetClientWidth(width);
-				myProjectionMatrix = XMMatrixPerspectiveFovLH(XM_PIDIV4, width / (FLOAT)height, 0.01f, 100.0f);
+				vp1ProjectionMatrix = XMMatrixPerspectiveFovLH(XM_PIDIV4, width / (FLOAT)height, 0.01f, 100.0f);
+
+				// Viewport structure constructed by topLeftX, topLeftY, width, height, minDepth, maxDepth
+				D3D11_VIEWPORT largeViewport = {0.0f, 0.0f, width, height, 0.5f, 1.0f};
+
+
+				// Small viewport
+
+				float vp2Height = height / 4.0f;
+				float vp2Width = width / 4.0f;
+
+				// Viewport structure constructed by topLeftX, topLeftY, width, height, minDepth, maxDepth
+				D3D11_VIEWPORT smallViewport = { 5.0f, 5.0f, vp2Width, vp2Height, 0.0f, 0.5f };
+				
+				// Initialize the view matrix
+				transl = XMMatrixTranslation(0.0f, 3.0f, -10.0f);
+				//vp1ViewMatrix = XMMatrixLookAtLH(Eye, At, Up);
+				vp2ViewMatrix = XMMatrixMultiply(XMMatrixIdentity(), transl);
+
+				// Initialize the projection matrix
+				vp2ProjectionMatrix = XMMatrixPerspectiveFovLH(XM_PIDIV4, vp2Width / vp2Height, 0.01f, 100.0f);;
+
+				viewPorts = new D3D11_VIEWPORT[2];
+				viewPorts[0] = largeViewport;
+				viewPorts[1] = smallViewport;
 			}
 
 		}
@@ -818,6 +850,17 @@ void LetsDrawSomeStuff::Render()
 			
 			// TODO: Set your shaders, Update & Set your constant buffers, Attatch your vertex & index buffers, Set your InputLayout & Topology & Draw!
 
+			// Update our time
+			static float t = 0.0f;
+			static ULONGLONG timeStart = 0;
+			ULONGLONG timeCur = GetTickCount64();
+			if (timeStart == 0)
+				timeStart = timeCur;
+			t = (timeCur - timeStart) / 1000.0f;
+
+			// Set the proper viewport
+			myContext->RSSetViewports(1, &viewPorts[testSceneVp]);
+
 			// Modify the view matrix based on user input
 			{
 				POINT cursorPos;
@@ -846,8 +889,8 @@ void LetsDrawSomeStuff::Render()
 				{
 					// Initialize the view matrix
 					XMMATRIX transl = XMMatrixTranslation(0.0f, 3.0f, -10.0f);
-					//myViewMatrix = XMMatrixLookAtLH(Eye, At, Up);
-					myViewMatrix = XMMatrixMultiply(XMMatrixIdentity(), transl);
+					//vp1ViewMatrix = XMMatrixLookAtLH(Eye, At, Up);
+					vp1ViewMatrix = XMMatrixMultiply(XMMatrixIdentity(), transl);
 				}
 				if (!cameraPaused)
 				{
@@ -855,89 +898,81 @@ void LetsDrawSomeStuff::Render()
 					if (GetAsyncKeyState('A'))
 					{
 						XMMATRIX transl = XMMatrixTranslation(-moveSpeed, 0.0f, 0.0f);
-						// myViewMatrix = XMMatrixMultiply(myViewMatrix, transl);
-						myViewMatrix = XMMatrixMultiply(transl, myViewMatrix);
+						// vp1ViewMatrix = XMMatrixMultiply(vp1ViewMatrix, transl);
+						vp1ViewMatrix = XMMatrixMultiply(transl, vp1ViewMatrix);
 					}
 					// Move to the right using D
 					if (GetAsyncKeyState('D'))
 					{
 						XMMATRIX transl = XMMatrixTranslation(moveSpeed, 0.0f, 0.0f);
-						// myViewMatrix = XMMatrixMultiply(myViewMatrix, transl);
-						myViewMatrix = XMMatrixMultiply(transl, myViewMatrix);
+						// vp1ViewMatrix = XMMatrixMultiply(vp1ViewMatrix, transl);
+						vp1ViewMatrix = XMMatrixMultiply(transl, vp1ViewMatrix);
 					}
 					// Move forward using W
 					if (GetAsyncKeyState('W'))
 					{
 						XMMATRIX transl = XMMatrixTranslation(0.0f, 0.0f, moveSpeed);
-						// myViewMatrix = XMMatrixMultiply(myViewMatrix, transl);
-						myViewMatrix = XMMatrixMultiply(transl, myViewMatrix);
+						// vp1ViewMatrix = XMMatrixMultiply(vp1ViewMatrix, transl);
+						vp1ViewMatrix = XMMatrixMultiply(transl, vp1ViewMatrix);
 					}
 					// Move backward using S
 					if (GetAsyncKeyState('S'))
 					{
 						XMMATRIX transl = XMMatrixTranslation(0.0f, 0.0f, -moveSpeed);
-						// myViewMatrix = XMMatrixMultiply(myViewMatrix, transl);
-						myViewMatrix = XMMatrixMultiply(transl, myViewMatrix);
+						// vp1ViewMatrix = XMMatrixMultiply(vp1ViewMatrix, transl);
+						vp1ViewMatrix = XMMatrixMultiply(transl, vp1ViewMatrix);
 					}
 					// Move up using SPACE
 					if (GetAsyncKeyState(VK_SPACE))
 					{
 						XMMATRIX transl = XMMatrixTranslation(0.0f, moveSpeed, 0.0f);
-						myViewMatrix = XMMatrixMultiply(transl, myViewMatrix);
+						vp1ViewMatrix = XMMatrixMultiply(transl, vp1ViewMatrix);
 					}
 					// Move down using CTRL
 					if (GetAsyncKeyState(VK_CONTROL))
 					{
 						XMMATRIX transl = XMMatrixTranslation(0.0f, -moveSpeed, 0.0f);
-						myViewMatrix = XMMatrixMultiply(transl, myViewMatrix);
+						vp1ViewMatrix = XMMatrixMultiply(transl, vp1ViewMatrix);
 					}
 					// Rotate based on cursor position
 					if (xDiff != 0)
 					{
 						// Save original location
-						XMMATRIX old = myViewMatrix;
+						XMMATRIX old = vp1ViewMatrix;
 						// Prepare y rotation matrix
 						XMMATRIX transl = XMMatrixRotationY(-xDiff * lookSpeed);
 						// Apply y rotation
-						myViewMatrix = XMMatrixMultiply(myViewMatrix, transl);
+						vp1ViewMatrix = XMMatrixMultiply(vp1ViewMatrix, transl);
 						// Move back to saved position
-						myViewMatrix.r[3].m128_f32[0] = old.r[3].m128_f32[0];
-						myViewMatrix.r[3].m128_f32[1] = old.r[3].m128_f32[1];
-						myViewMatrix.r[3].m128_f32[2] = old.r[3].m128_f32[2];
+						vp1ViewMatrix.r[3].m128_f32[0] = old.r[3].m128_f32[0];
+						vp1ViewMatrix.r[3].m128_f32[1] = old.r[3].m128_f32[1];
+						vp1ViewMatrix.r[3].m128_f32[2] = old.r[3].m128_f32[2];
 					}
 					if (yDiff != 0)
 					{
 						// Save original location
-						XMMATRIX old = myViewMatrix;
+						XMMATRIX old = vp1ViewMatrix;
 						// Prepare y rotation matrix
 						XMMATRIX transl = XMMatrixRotationX(-yDiff * lookSpeed);
 						// Place matrix at origin
-						myViewMatrix.r[3].m128_f32[0] = 0.0f;
-						myViewMatrix.r[3].m128_f32[1] = 0.0f;
-						myViewMatrix.r[3].m128_f32[2] = 0.0f;
+						vp1ViewMatrix.r[3].m128_f32[0] = 0.0f;
+						vp1ViewMatrix.r[3].m128_f32[1] = 0.0f;
+						vp1ViewMatrix.r[3].m128_f32[2] = 0.0f;
 						// Mutiply matrices in reverse order
-						myViewMatrix = XMMatrixMultiply(transl, myViewMatrix);
+						vp1ViewMatrix = XMMatrixMultiply(transl, vp1ViewMatrix);
 						// Move back to saved position
-						myViewMatrix.r[3].m128_f32[0] = old.r[3].m128_f32[0];
-						myViewMatrix.r[3].m128_f32[1] = old.r[3].m128_f32[1];
-						myViewMatrix.r[3].m128_f32[2] = old.r[3].m128_f32[2];
+						vp1ViewMatrix.r[3].m128_f32[0] = old.r[3].m128_f32[0];
+						vp1ViewMatrix.r[3].m128_f32[1] = old.r[3].m128_f32[1];
+						vp1ViewMatrix.r[3].m128_f32[2] = old.r[3].m128_f32[2];
 					}
 				}
 			}
 
-			// Update our time
-			static float t = 0.0f;
-			static ULONGLONG timeStart = 0;
-			ULONGLONG timeCur = GetTickCount64();
-			if (timeStart == 0)
-				timeStart = timeCur;
-			t = (timeCur - timeStart) / 1000.0f;
-
 			// Set up initial constant buffer values
 			ConstantBuffer cb1;
 			cb1.time = XMFLOAT4(t, t, t, 1.0f);
-			cb1.mView = XMMatrixTranspose(XMMatrixInverse(nullptr,myViewMatrix));
-			cb1.mProjection = XMMatrixTranspose(myProjectionMatrix);
+			cb1.mView = XMMatrixTranspose(XMMatrixInverse(nullptr,vp1ViewMatrix));
+			cb1.mProjection = XMMatrixTranspose(vp1ProjectionMatrix);
 			// Dir light 1
 			cb1.dirLights[0].col = XMFLOAT4(0.6f, 0.6f, 0.6f, 1.0f);
 			cb1.dirLights[0].dir = XMFLOAT4(-1.0f, 0.75f, 0.0f, 1.0f);
@@ -949,9 +984,6 @@ void LetsDrawSomeStuff::Render()
 			cb1.pointLights[1].col = XMFLOAT4(0.0f, 0.7f, 0.0f, 1.0f);
 			cb1.pointLights[1].pos = XMFLOAT4(0.0f, 2.5f, 0.0f, 1.0f);
 			cb1.pointLights[1].rad = XMFLOAT4(10.0f, 0.0f, 0.0f, 1.0f);
-
-			// 
-			
 
 			// Unsigned int used to point to meshes in the vector of meshes
 			unsigned int meshIndex = 0;
@@ -1051,6 +1083,21 @@ void LetsDrawSomeStuff::Render()
 				// Otherwise, call it without
 				else
 					BasicDraw(meshIndex, cb1, D3D11_PRIMITIVE_TOPOLOGY_POINTLIST, vsDefault, psSolidColor, nullptr);
+			}
+
+			// Small viewport
+			
+			myContext->RSSetViewports(1, &viewPorts[spaceSceneVp]);
+
+			// Set up constant buffer for the small viewport
+			cb1.mView = XMMatrixTranspose(XMMatrixInverse(nullptr, vp2ViewMatrix));
+			cb1.mProjection = XMMatrixTranspose(vp2ProjectionMatrix);
+
+			// Drawing the special cube
+			{
+				FindMesh("Cube", meshIndex);
+				meshes[meshIndex].mWorld = XMMatrixMultiply(XMMatrixScaling(0.1f, 0.1f, 0.1f), XMMatrixRotationY(t));
+				BasicDrawIndexed(meshIndex, cb1, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, vsDefault, psCustomWaves, nullptr);
 			}
 
 			// Present Backbuffer using Swapchain object
