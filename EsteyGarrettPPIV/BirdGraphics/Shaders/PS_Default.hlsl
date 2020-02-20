@@ -11,15 +11,15 @@ float4 main(PS_INPUT input) : SV_TARGET
 		float lightRatio = saturate(dot(dirLights[0].dir.xyz, input.norm));
 		lightRatio = saturate(lightRatio + 0.4f);
 		finalColor += lightRatio * dirLights[0].col;
-		for (int i = 1; i < DIRLIGHTCOUNT - 1; i++)
+        for (int i = (int) useDirLights.x; i < (int) useDirLights.y; i++)
 		{
             // Then all the other lights
-            finalColor += saturate(dot(dirLights[1].dir.xyz, input.norm) * dirLights[1].col);
+            finalColor += saturate(dot(dirLights[i].dir.xyz, input.norm) * dirLights[i].col);
 		}
 	}
     
     // POINT LIGHTS
-	for (int i = 0; i < POINTLIGHTCOUNT; i++)
+    for (int i = (int) usePointLights.x; i < (int) usePointLights.y; i++)
     {
 		float mag = length(pointLights[i].pos.xyz - input.wPos.xyz);
         float3 lightDir = normalize(pointLights[i].pos.xyz - input.wPos.xyz);

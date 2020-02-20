@@ -73,7 +73,10 @@ using namespace std;
 		DirectionalLight dirLights[DIRLIGHTCOUNT];
 		PointLight pointLights[POINTLIGHTCOUNT];
 		XMFLOAT4 solidColor;
-		XMFLOAT4 time;
+		XMFLOAT2 time;
+		XMFLOAT2 useDirLights;
+		XMFLOAT2 usePointLights;
+		XMFLOAT2 useSpotLights;
 	};
 
 	struct InstanceData
@@ -989,6 +992,8 @@ void LetsDrawSomeStuff::Render()
 						mainCamera.r[3].m128_f32[2] = old.r[3].m128_f32[2];
 					}
 				}
+				
+				// Send the modified camera data back out to the respective view matrix
 				if (testSceneVp == 0)
 					testSceneViewMatrix = mainCamera;
 				else
@@ -997,9 +1002,13 @@ void LetsDrawSomeStuff::Render()
 
 			// Set up initial constant buffer values
 			ConstantBuffer cb1;
-			cb1.time = XMFLOAT4(t, t, t, 1.0f);
+			cb1.time = XMFLOAT2(t, t);
 			cb1.mView = XMMatrixTranspose(XMMatrixInverse(nullptr,testSceneViewMatrix));
 			cb1.mProjection = XMMatrixTranspose(vp1ProjectionMatrix);
+			// Establish how many lights to render in this scene
+			cb1.useDirLights = XMFLOAT2(0.0f, 0.0f);
+			cb1.usePointLights = XMFLOAT2(0.0f, 2.0f);
+			cb1.useSpotLights = XMFLOAT2(0.0f, 0.0f);
 			// Dir light 1
 			cb1.dirLights[0].col = XMFLOAT4(0.6f, 0.6f, 0.6f, 1.0f);
 			cb1.dirLights[0].dir = XMFLOAT4(-1.0f, 0.75f, 0.0f, 1.0f);

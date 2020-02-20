@@ -26,7 +26,10 @@ cbuffer ConstantBuffer : register(b0)
     DirectionalLight dirLights[DIRLIGHTCOUNT];
     PointLight pointLights[POINTLIGHTCOUNT];
     float4 solidColor;
-    float4 time;
+    float2 time;
+    float2 useDirLights;
+    float2 usePointLights;
+    float2 useSpotLights;
 };
 
 struct VS_INPUT
