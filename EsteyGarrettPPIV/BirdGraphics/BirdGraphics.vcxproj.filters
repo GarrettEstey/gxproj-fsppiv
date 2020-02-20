@@ -105,5 +105,8 @@
     <FxCompile Include="Shaders\VS_Instancing.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="Shaders\PS_SkyBox.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

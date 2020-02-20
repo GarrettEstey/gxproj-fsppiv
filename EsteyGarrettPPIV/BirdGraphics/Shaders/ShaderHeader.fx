@@ -3,6 +3,7 @@
 #include "../lightDefines.h"
 
 Texture2D txDiffuse : register(t0);
+TextureCube cubeDiffuse : register(t1);
 SamplerState samLinear : register(s0);
 
 struct DirectionalLight
@@ -43,7 +44,8 @@ struct VS_INPUT
 struct PS_INPUT
 {
     float4 pos : SV_POSITION;
-    float4 wPos : POSITION;
+    float4 lPos : POSITION;
+    float4 wPos : POSITION1;
     float4 color : COLOR;
     float3 norm : NORMAL;
     float2 tex : TEXCOORD;

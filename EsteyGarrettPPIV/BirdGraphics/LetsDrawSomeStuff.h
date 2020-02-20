@@ -21,6 +21,7 @@
 #include "./Shaders/Csh/PS_Default.csh"
 #include "./Shaders/Csh/PS_SolidColor.csh"
 #include "./Shaders/Csh/PS_CustomWaves.csh"
+#include "./Shaders/Csh/PS_SkyBox.csh"
 #include "./Shaders/Csh/GS_Test.csh"
 // Other includes
 #include "lightDefines.h"
@@ -49,7 +50,6 @@ using namespace std;
 		ID3D11Buffer* vertexBuffer = nullptr;
 		ID3D11Buffer* indexBuffer = nullptr;
 		ID3D11ShaderResourceView* textureRV = nullptr;
-		ID3D11SamplerState* samplerLinear = nullptr;
 	};
 
 	struct DirectionalLight
@@ -120,12 +120,14 @@ class LetsDrawSomeStuff
 	ID3D11Buffer*					    myConstantBuffer = nullptr;
 	ID3D11Buffer*						cubeInstanceBuffer = nullptr;
 	ID3D11InputLayout*					myVertexLayout = nullptr;
+	ID3D11SamplerState*					mySamplerLinear = nullptr;
 	ID3D11VertexShader*					vsDefault = nullptr;
 	ID3D11VertexShader*					vsWaves = nullptr;
 	ID3D11VertexShader*					vsInstancing = nullptr;
 	ID3D11PixelShader*					psDefault = nullptr;
 	ID3D11PixelShader*					psSolidColor = nullptr;
 	ID3D11PixelShader*					psCustomWaves = nullptr;
+	ID3D11PixelShader*					psSkyBox = nullptr;
 	ID3D11GeometryShader*				gsTest = nullptr;
 	D3D11_VIEWPORT*						viewPorts = nullptr;
 
@@ -203,9 +205,16 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 				meshes.push_back(myMesh);
 
 				// Set mesh name
-				myMesh.name = "PalmTree";
+				myMesh.name = "TestSkyCube";
 				// Load a mesh
-				LoadMesh("./Assets/Meshes/palmTree.mesh", myMesh);
+				LoadMesh("./Assets/Meshes/skyCube.mesh", myMesh);
+				// Push this mesh into the meshes vector
+				meshes.push_back(myMesh);
+
+				// Set mesh name
+				myMesh.name = "SpaceSkyCube";
+				// Load a mesh
+				LoadMesh("./Assets/Meshes/skyCube.mesh", myMesh);
 				// Push this mesh into the meshes vector
 				meshes.push_back(myMesh);
 
@@ -326,18 +335,6 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 				InitData.pSysMem = meshes[index].indicesList.data();
 				hr = myDevice->CreateBuffer(&bd, &InitData, &meshes[index].indexBuffer);
 
-				// Sample state
-
-				D3D11_SAMPLER_DESC sampDesc = {};
-				sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-				sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
-				sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
-				sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
-				sampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
-				sampDesc.MinLOD = 0;
-				sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
-				hr = myDevice->CreateSamplerState(&sampDesc, &meshes[index].samplerLinear);
-
 				// Resource View
 
 				hr = CreateDDSTextureFromFile(myDevice, L"./Assets/Textures/bed.dds", nullptr, &meshes[index].textureRV);
@@ -444,18 +441,6 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 				InitData.pSysMem = meshes[index].indicesList.data();
 				hr = myDevice->CreateBuffer(&bd, &InitData, &meshes[index].indexBuffer);
 
-				// Sample state
-
-				D3D11_SAMPLER_DESC sampDesc = {};
-				sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-				sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
-				sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
-				sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
-				sampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
-				sampDesc.MinLOD = 0;
-				sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
-				hr = myDevice->CreateSamplerState(&sampDesc, &meshes[index].samplerLinear);
-
 				// Resource View
 
 				hr = CreateDDSTextureFromFile(myDevice, L"./Assets/Textures/fan.dds", nullptr, &meshes[index].textureRV);
@@ -532,11 +517,11 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 				myDevice->CreateBuffer(&bd, &InitData, &cubeInstanceBuffer);
 			}
 
-			// Palm Tree Buffers
+			// Test Scene Skybox Cube Buffers
 			{
 				// Find the mesh in the vector with the correct name
 				unsigned int index = 0;
-				FindMesh("PalmTree", index);
+				FindMesh("TestSkyCube", index);
 
 				// Vertex Buffer
 
@@ -569,21 +554,51 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 				InitData.pSysMem = meshes[index].indicesList.data();
 				hr = myDevice->CreateBuffer(&bd, &InitData, &meshes[index].indexBuffer);
 
-				// Sample state
+				// Resource View
 
-				D3D11_SAMPLER_DESC sampDesc = {};
-				sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-				sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
-				sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
-				sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
-				sampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
-				sampDesc.MinLOD = 0;
-				sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
-				hr = myDevice->CreateSamplerState(&sampDesc, &meshes[index].samplerLinear);
+				hr = CreateDDSTextureFromFile(myDevice, L"./Assets/Textures/oceanSkybox.dds", nullptr, &meshes[index].textureRV);
+			}
+
+			// Test Scene Skybox Cube Buffers
+			{
+				// Find the mesh in the vector with the correct name
+				unsigned int index = 0;
+				FindMesh("SpaceSkyCube", index);
+
+				// Vertex Buffer
+
+				// This creates an empty buffer description object
+				D3D11_BUFFER_DESC bd = {};
+				// The usage flag informs how the data will be used. IMMUTABLE means that this is a constant, never changing buffer
+				// You can also use DEFAULT, which allows the GPU to alter this data, but not the CPU
+				// There is also DYNAMIC, meaning it can be changed at any time by the CPU or GPU
+				bd.Usage = D3D11_USAGE_IMMUTABLE;
+				// The bindFlags inform what the buffer will be used to store. In this case, verts
+				bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+				// CPUAccessFlags inform what kind of acess the CPU has to this buffer. None. 0. This is immutable
+				bd.CPUAccessFlags = 0;
+				// ByteWidth is just informing how large the buffer is
+				bd.ByteWidth = sizeof(Vertex) * meshes[index].vertexList.size();
+
+				// Create the buffer on the device
+				D3D11_SUBRESOURCE_DATA InitData = {};
+				InitData.pSysMem = meshes[index].vertexList.data();
+				hr = myDevice->CreateBuffer(&bd, &InitData, &meshes[index].vertexBuffer);
+
+
+				// Index Buffer
+
+				// Create index buffer
+				bd.Usage = D3D11_USAGE_DEFAULT;
+				bd.ByteWidth = sizeof(int) * meshes[index].indicesList.size();
+				bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
+				bd.CPUAccessFlags = 0;
+				InitData.pSysMem = meshes[index].indicesList.data();
+				hr = myDevice->CreateBuffer(&bd, &InitData, &meshes[index].indexBuffer);
 
 				// Resource View
 
-				hr = CreateDDSTextureFromFile(myDevice, L"./Assets/Textures/palmTree.dds", nullptr, &meshes[index].textureRV);
+				hr = CreateDDSTextureFromFile(myDevice, L"./Assets/Textures/oceanSkybox.dds", nullptr, &meshes[index].textureRV);
 			}
 
 			// Chest Buffers
@@ -622,18 +637,6 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 				bd.CPUAccessFlags = 0;
 				InitData.pSysMem = meshes[index].indicesList.data();
 				hr = myDevice->CreateBuffer(&bd, &InitData, &meshes[index].indexBuffer);
-
-				// Sample state
-
-				D3D11_SAMPLER_DESC sampDesc = {};
-				sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-				sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
-				sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
-				sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
-				sampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
-				sampDesc.MinLOD = 0;
-				sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
-				hr = myDevice->CreateSamplerState(&sampDesc, &meshes[index].samplerLinear);
 
 				// Resource View
 
@@ -681,6 +684,7 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 			myDevice->CreatePixelShader(PS_Default, sizeof(PS_Default), nullptr, &psDefault);
 			myDevice->CreatePixelShader(PS_SolidColor, sizeof(PS_SolidColor), nullptr, &psSolidColor);
 			myDevice->CreatePixelShader(PS_CustomWaves, sizeof(PS_CustomWaves), nullptr, &psCustomWaves);
+			myDevice->CreatePixelShader(PS_SkyBox, sizeof(PS_SkyBox), nullptr, &psSkyBox);
 
 			#pragma endregion
 
@@ -689,6 +693,20 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 			myDevice->CreateGeometryShader(GS_Test, sizeof(GS_Test), nullptr, &gsTest);
 
 			#pragma endregion
+
+			// Sample state
+			{
+				D3D11_SAMPLER_DESC sampDesc = {};
+				sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+				sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+				sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+				sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+				sampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+				sampDesc.MinLOD = 0;
+				sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
+				hr = myDevice->CreateSamplerState(&sampDesc, &mySamplerLinear);
+			}
+			
 
 
 			// Input Layout
@@ -790,8 +808,6 @@ LetsDrawSomeStuff::~LetsDrawSomeStuff()
 			var.indexBuffer->Release();
 		if (var.vertexBuffer)
 			var.vertexBuffer->Release();
-		if (var.samplerLinear)
-			var.samplerLinear->Release();
 		if (var.textureRV)
 			var.textureRV->Release();
 	}
@@ -810,6 +826,8 @@ LetsDrawSomeStuff::~LetsDrawSomeStuff()
 		psSolidColor->Release();
 	if (psCustomWaves)
 		psCustomWaves->Release();
+	if (psSkyBox)
+		psSkyBox->Release();
 	
 	if (gsTest)
 		gsTest->Release();
@@ -817,6 +835,8 @@ LetsDrawSomeStuff::~LetsDrawSomeStuff()
 	// Release other stuff
 	if (myVertexLayout)
 		myVertexLayout->Release();
+	if (mySamplerLinear)
+		mySamplerLinear->Release();
 	
 	delete[] viewPorts;
 
@@ -862,6 +882,9 @@ void LetsDrawSomeStuff::Render()
 				timeStart = timeCur;
 			t = (timeCur - timeStart) / 1000.0f;
 
+			// Unsigned int used to point to meshes in the vector of meshes
+			unsigned int meshIndex = 0;
+
 			// Set the proper viewport
 			myContext->RSSetViewports(1, &viewPorts[testSceneVp]);
 
@@ -901,8 +924,8 @@ void LetsDrawSomeStuff::Render()
 					}
 					else
 					{
-						testSceneVp = 0;
-						spaceSceneVp = 1;
+testSceneVp = 0;
+spaceSceneVp = 1;
 					}
 					inputDelay = 250;
 				}
@@ -913,7 +936,7 @@ void LetsDrawSomeStuff::Render()
 					mainCamera = testSceneViewMatrix;
 				else
 					mainCamera = spaceSceneViewMatrix;
-				
+
 				// Camera controls, so long as the camera is not locked
 				if (!cameraPaused)
 				{
@@ -992,7 +1015,7 @@ void LetsDrawSomeStuff::Render()
 						mainCamera.r[3].m128_f32[2] = old.r[3].m128_f32[2];
 					}
 				}
-				
+
 				// Send the modified camera data back out to the respective view matrix
 				if (testSceneVp == 0)
 					testSceneViewMatrix = mainCamera;
@@ -1021,9 +1044,6 @@ void LetsDrawSomeStuff::Render()
 			cb1.pointLights[1].pos = XMFLOAT4(0.0f, 2.5f, 0.0f, 1.0f);
 			cb1.pointLights[1].rad = XMFLOAT4(10.0f, 0.0f, 0.0f, 1.0f);
 
-			// Unsigned int used to point to meshes in the vector of meshes
-			unsigned int meshIndex = 0;
-
 			// Move lights
 			{
 				// Rotate the yellow point light around the origin
@@ -1038,6 +1058,101 @@ void LetsDrawSomeStuff::Render()
 				vLightDir = XMVector3Transform(vLightDir, mModify);
 				XMStoreFloat4(&cb1.pointLights[1].pos, vLightDir);
 			}
+
+			// Draw skyboxes for both scenes, so that the Z-Buffer is not fucked up
+			{
+				float skyboxScale = 575.0f;
+				// Skybox for test viewport
+				{
+					// Set the proper viewport
+					myContext->RSSetViewports(1, &viewPorts[testSceneVp]);
+					// Find the test scene skybox cube
+					FindMesh("TestSkyCube", meshIndex);
+					// Set that cube's location to the location of the camera
+					meshes[meshIndex].mWorld = XMMatrixMultiply(XMMatrixIdentity(), XMMatrixScaling(skyboxScale, skyboxScale, skyboxScale));
+					meshes[meshIndex].mWorld.r[3].m128_f32[0] = testSceneViewMatrix.r[3].m128_f32[0];
+					meshes[meshIndex].mWorld.r[3].m128_f32[1] = testSceneViewMatrix.r[3].m128_f32[1];
+					meshes[meshIndex].mWorld.r[3].m128_f32[2] = testSceneViewMatrix.r[3].m128_f32[2];
+					// Set vertex buffer in the context
+					UINT stride = sizeof(Vertex);
+					UINT offset = 0;
+					myContext->IASetVertexBuffers(0, 1, &meshes[meshIndex].vertexBuffer, &stride, &offset);
+
+					// Set index buffer
+					myContext->IASetIndexBuffer(meshes[meshIndex].indexBuffer, DXGI_FORMAT_R32_UINT, 0);
+
+					// Set primitive topology
+					myContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+					// Update constant buffer
+					cb1.mWorld = XMMatrixTranspose(meshes[meshIndex].mWorld);
+					// Send updated constant buffer
+					myContext->UpdateSubresource(myConstantBuffer, 0, nullptr, &cb1, 0, 0);
+
+					// Setup shaders
+					myContext->VSSetShader(vsDefault, nullptr, 0);
+					myContext->VSSetConstantBuffers(0, 1, &myConstantBuffer);
+					myContext->PSSetShader(psSkyBox, nullptr, 0);
+					myContext->PSSetConstantBuffers(0, 1, &myConstantBuffer);
+					myContext->PSSetShaderResources(1, 1, &meshes[meshIndex].textureRV);
+					myContext->PSSetSamplers(0, 1, &mySamplerLinear);
+
+					// Draw indexed object
+					myContext->DrawIndexed((UINT)meshes[meshIndex].indicesList.size(), 0, 0);
+				}
+				
+				// Skybox for space viewport
+				{
+					cb1.mView = XMMatrixTranspose(XMMatrixInverse(nullptr, spaceSceneViewMatrix));
+					cb1.mProjection = XMMatrixTranspose(vp2ProjectionMatrix);
+
+					// Set the proper viewport
+					myContext->RSSetViewports(1, &viewPorts[spaceSceneVp]);
+					// Find the space scene skybox cube
+					FindMesh("SpaceSkyCube", meshIndex);
+					// Set that cube's location to the location of the camera
+					meshes[meshIndex].mWorld = XMMatrixMultiply(XMMatrixIdentity(), XMMatrixScaling(skyboxScale, skyboxScale, skyboxScale));
+					meshes[meshIndex].mWorld.r[3].m128_f32[0] = spaceSceneViewMatrix.r[3].m128_f32[0];
+					meshes[meshIndex].mWorld.r[3].m128_f32[1] = spaceSceneViewMatrix.r[3].m128_f32[1];
+					meshes[meshIndex].mWorld.r[3].m128_f32[2] = spaceSceneViewMatrix.r[3].m128_f32[2];
+					// Set vertex buffer in the context
+					UINT stride = sizeof(Vertex);
+					UINT offset = 0;
+					myContext->IASetVertexBuffers(0, 1, &meshes[meshIndex].vertexBuffer, &stride, &offset);
+
+					// Set index buffer
+					myContext->IASetIndexBuffer(meshes[meshIndex].indexBuffer, DXGI_FORMAT_R32_UINT, 0);
+
+					// Set primitive topology
+					myContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+					// Update constant buffer
+					cb1.mWorld = XMMatrixTranspose(meshes[meshIndex].mWorld);
+					// Send updated constant buffer
+					myContext->UpdateSubresource(myConstantBuffer, 0, nullptr, &cb1, 0, 0);
+
+					// Setup shaders
+					myContext->VSSetShader(vsDefault, nullptr, 0);
+					myContext->VSSetConstantBuffers(0, 1, &myConstantBuffer);
+					myContext->PSSetShader(psSkyBox, nullptr, 0);
+					myContext->PSSetConstantBuffers(0, 1, &myConstantBuffer);
+					myContext->PSSetShaderResources(1, 1, &meshes[meshIndex].textureRV);
+					myContext->PSSetSamplers(0, 1, &mySamplerLinear);
+
+					// Draw indexed object
+					myContext->DrawIndexed((UINT)meshes[meshIndex].indicesList.size(), 0, 0);
+				}
+
+				// Clear Z buffer
+				//myContext->ClearDepthStencilView(myDepthStencilView, D3D11_CLEAR_DEPTH, 1, 0);
+			}
+
+			// Reset matrices back to test scene matrices
+			cb1.mView = XMMatrixTranspose(XMMatrixInverse(nullptr, testSceneViewMatrix));
+			cb1.mProjection = XMMatrixTranspose(vp1ProjectionMatrix);
+
+			// Set the proper viewport
+			myContext->RSSetViewports(1, &viewPorts[testSceneVp]);
 
 			// Drawing the grid
 			{
@@ -1102,7 +1217,7 @@ void LetsDrawSomeStuff::Render()
 				myContext->PSSetShader(psCustomWaves, nullptr, 0);
 				myContext->PSSetConstantBuffers(0, 1, &myConstantBuffer);
 				myContext->PSSetShaderResources(0, 1, &meshes[meshIndex].textureRV);
-				myContext->PSSetSamplers(0, 1, &meshes[meshIndex].samplerLinear);
+				myContext->PSSetSamplers(0, 1, &mySamplerLinear);
 				myContext->GSSetShader(nullptr, nullptr, 0);
 				myContext->GSSetConstantBuffers(0, 1, &myConstantBuffer);
 
@@ -1227,7 +1342,7 @@ void LetsDrawSomeStuff::BasicDrawIndexed(unsigned int index, ConstantBuffer cb, 
 	myContext->PSSetShader(pShader, nullptr, 0);
 	myContext->PSSetConstantBuffers(0, 1, &myConstantBuffer);
 	myContext->PSSetShaderResources(0, 1, &meshes[index].textureRV);
-	myContext->PSSetSamplers(0, 1, &meshes[index].samplerLinear);
+	myContext->PSSetSamplers(0, 1, &mySamplerLinear);
 	myContext->GSSetShader(gShader, nullptr, 0);
 	myContext->GSSetConstantBuffers(0, 1, &myConstantBuffer);
 
@@ -1260,7 +1375,7 @@ void LetsDrawSomeStuff::BasicDraw(unsigned int index, ConstantBuffer cb, D3D_PRI
 	myContext->PSSetShader(pShader, nullptr, 0);
 	myContext->PSSetConstantBuffers(0, 1, &myConstantBuffer);
 	myContext->PSSetShaderResources(0, 1, &meshes[index].textureRV);
-	myContext->PSSetSamplers(0, 1, &meshes[index].samplerLinear);
+	myContext->PSSetSamplers(0, 1, &mySamplerLinear);
 	myContext->GSSetShader(gShader, nullptr, 0);
 	myContext->GSSetConstantBuffers(0, 1, &myConstantBuffer);
 
