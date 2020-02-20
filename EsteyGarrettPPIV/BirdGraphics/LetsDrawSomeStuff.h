@@ -84,9 +84,9 @@ using namespace std;
 	InstanceData	perInstanceData[INSTANCECOUNT];
 
 	// Matrices
-	XMMATRIX		vp1ViewMatrix;
+	XMMATRIX		testSceneViewMatrix;
 	XMMATRIX		vp1ProjectionMatrix;
-	XMMATRIX		vp2ViewMatrix;
+	XMMATRIX		spaceSceneViewMatrix;
 	XMMATRIX		vp2ProjectionMatrix;
 
 	// Meshes
@@ -726,8 +726,8 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 
 				// Initialize the view matrix
 				XMMATRIX transl = XMMatrixTranslation(0.0f, 3.0f, -10.0f);
-				//vp1ViewMatrix = XMMatrixLookAtLH(Eye, At, Up);
-				vp1ViewMatrix = XMMatrixMultiply(XMMatrixIdentity(), transl);
+				//testSceneViewMatrix = XMMatrixLookAtLH(Eye, At, Up);
+				testSceneViewMatrix = XMMatrixMultiply(XMMatrixIdentity(), transl);
 
 				// Initialize the projection matrix
 				UINT height;
@@ -750,8 +750,8 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 				
 				// Initialize the view matrix
 				transl = XMMatrixTranslation(0.0f, 3.0f, -10.0f);
-				//vp1ViewMatrix = XMMatrixLookAtLH(Eye, At, Up);
-				vp2ViewMatrix = XMMatrixMultiply(XMMatrixIdentity(), transl);
+				//testSceneViewMatrix = XMMatrixLookAtLH(Eye, At, Up);
+				spaceSceneViewMatrix = XMMatrixMultiply(XMMatrixIdentity(), transl);
 
 				// Initialize the projection matrix
 				vp2ProjectionMatrix = XMMatrixPerspectiveFovLH(XM_PIDIV4, vp2Width / vp2Height, 0.01f, 100.0f);;
@@ -815,6 +815,7 @@ LetsDrawSomeStuff::~LetsDrawSomeStuff()
 	if (myVertexLayout)
 		myVertexLayout->Release();
 	
+	delete[] viewPorts;
 
 	if (mySurface) // Free Gateware Interface
 	{
@@ -863,6 +864,7 @@ void LetsDrawSomeStuff::Render()
 
 			// Modify the view matrix based on user input
 			{
+				// Setup values
 				POINT cursorPos;
 				GetCursorPos(&cursorPos);
 				float xDiff = oldCursorPos.x - cursorPos.x;
@@ -870,6 +872,7 @@ void LetsDrawSomeStuff::Render()
 				oldCursorPos = cursorPos;
 				float moveSpeed = 0.005f;
 				float lookSpeed = 0.003f;
+				// Input delay to prevent asyncKeyState from spamming inputs. Primitive, but it works
 				if (inputDelay > 0)
 				{
 					inputDelay -= 1;
@@ -880,98 +883,122 @@ void LetsDrawSomeStuff::Render()
 					cameraPaused = !cameraPaused;
 					inputDelay = 250;
 				}
+				// G activates or deactivates the geometry shader
 				if (GetAsyncKeyState('G') && inputDelay == 0)
 				{
 					testGeoShader = !testGeoShader;
 					inputDelay = 250;
 				}
-				if (GetAsyncKeyState(0x52))
+				if (GetAsyncKeyState('C') && inputDelay == 0)
 				{
-					// Initialize the view matrix
-					XMMATRIX transl = XMMatrixTranslation(0.0f, 3.0f, -10.0f);
-					//vp1ViewMatrix = XMMatrixLookAtLH(Eye, At, Up);
-					vp1ViewMatrix = XMMatrixMultiply(XMMatrixIdentity(), transl);
+					if (testSceneVp == 0)
+					{
+						testSceneVp = 1;
+						spaceSceneVp = 0;
+					}
+					else
+					{
+						testSceneVp = 0;
+						spaceSceneVp = 1;
+					}
+					inputDelay = 250;
 				}
+
+				// Set which camera is moving
+				XMMATRIX mainCamera;
+				if (testSceneVp == 0)
+					mainCamera = testSceneViewMatrix;
+				else
+					mainCamera = spaceSceneViewMatrix;
+				
+				// Camera controls, so long as the camera is not locked
 				if (!cameraPaused)
 				{
+					// R resets the camera to a default position
+					if (GetAsyncKeyState('R'))
+					{
+						// Initialize the view matrix
+						XMMATRIX transl = XMMatrixTranslation(0.0f, 3.0f, -10.0f);
+						mainCamera = XMMatrixMultiply(XMMatrixIdentity(), transl);
+					}
 					// Move to the left using A
 					if (GetAsyncKeyState('A'))
 					{
 						XMMATRIX transl = XMMatrixTranslation(-moveSpeed, 0.0f, 0.0f);
-						// vp1ViewMatrix = XMMatrixMultiply(vp1ViewMatrix, transl);
-						vp1ViewMatrix = XMMatrixMultiply(transl, vp1ViewMatrix);
+						mainCamera = XMMatrixMultiply(transl, mainCamera);
 					}
 					// Move to the right using D
 					if (GetAsyncKeyState('D'))
 					{
 						XMMATRIX transl = XMMatrixTranslation(moveSpeed, 0.0f, 0.0f);
-						// vp1ViewMatrix = XMMatrixMultiply(vp1ViewMatrix, transl);
-						vp1ViewMatrix = XMMatrixMultiply(transl, vp1ViewMatrix);
+						mainCamera = XMMatrixMultiply(transl, mainCamera);
 					}
 					// Move forward using W
 					if (GetAsyncKeyState('W'))
 					{
 						XMMATRIX transl = XMMatrixTranslation(0.0f, 0.0f, moveSpeed);
-						// vp1ViewMatrix = XMMatrixMultiply(vp1ViewMatrix, transl);
-						vp1ViewMatrix = XMMatrixMultiply(transl, vp1ViewMatrix);
+						mainCamera = XMMatrixMultiply(transl, mainCamera);
 					}
 					// Move backward using S
 					if (GetAsyncKeyState('S'))
 					{
 						XMMATRIX transl = XMMatrixTranslation(0.0f, 0.0f, -moveSpeed);
-						// vp1ViewMatrix = XMMatrixMultiply(vp1ViewMatrix, transl);
-						vp1ViewMatrix = XMMatrixMultiply(transl, vp1ViewMatrix);
+						mainCamera = XMMatrixMultiply(transl, mainCamera);
 					}
 					// Move up using SPACE
 					if (GetAsyncKeyState(VK_SPACE))
 					{
 						XMMATRIX transl = XMMatrixTranslation(0.0f, moveSpeed, 0.0f);
-						vp1ViewMatrix = XMMatrixMultiply(transl, vp1ViewMatrix);
+						mainCamera = XMMatrixMultiply(transl, mainCamera);
 					}
 					// Move down using CTRL
 					if (GetAsyncKeyState(VK_CONTROL))
 					{
 						XMMATRIX transl = XMMatrixTranslation(0.0f, -moveSpeed, 0.0f);
-						vp1ViewMatrix = XMMatrixMultiply(transl, vp1ViewMatrix);
+						mainCamera = XMMatrixMultiply(transl, mainCamera);
 					}
 					// Rotate based on cursor position
 					if (xDiff != 0)
 					{
 						// Save original location
-						XMMATRIX old = vp1ViewMatrix;
+						XMMATRIX old = mainCamera;
 						// Prepare y rotation matrix
 						XMMATRIX transl = XMMatrixRotationY(-xDiff * lookSpeed);
 						// Apply y rotation
-						vp1ViewMatrix = XMMatrixMultiply(vp1ViewMatrix, transl);
+						mainCamera = XMMatrixMultiply(mainCamera, transl);
 						// Move back to saved position
-						vp1ViewMatrix.r[3].m128_f32[0] = old.r[3].m128_f32[0];
-						vp1ViewMatrix.r[3].m128_f32[1] = old.r[3].m128_f32[1];
-						vp1ViewMatrix.r[3].m128_f32[2] = old.r[3].m128_f32[2];
+						mainCamera.r[3].m128_f32[0] = old.r[3].m128_f32[0];
+						mainCamera.r[3].m128_f32[1] = old.r[3].m128_f32[1];
+						mainCamera.r[3].m128_f32[2] = old.r[3].m128_f32[2];
 					}
 					if (yDiff != 0)
 					{
 						// Save original location
-						XMMATRIX old = vp1ViewMatrix;
+						XMMATRIX old = mainCamera;
 						// Prepare y rotation matrix
 						XMMATRIX transl = XMMatrixRotationX(-yDiff * lookSpeed);
 						// Place matrix at origin
-						vp1ViewMatrix.r[3].m128_f32[0] = 0.0f;
-						vp1ViewMatrix.r[3].m128_f32[1] = 0.0f;
-						vp1ViewMatrix.r[3].m128_f32[2] = 0.0f;
+						mainCamera.r[3].m128_f32[0] = 0.0f;
+						mainCamera.r[3].m128_f32[1] = 0.0f;
+						mainCamera.r[3].m128_f32[2] = 0.0f;
 						// Mutiply matrices in reverse order
-						vp1ViewMatrix = XMMatrixMultiply(transl, vp1ViewMatrix);
+						mainCamera = XMMatrixMultiply(transl, mainCamera);
 						// Move back to saved position
-						vp1ViewMatrix.r[3].m128_f32[0] = old.r[3].m128_f32[0];
-						vp1ViewMatrix.r[3].m128_f32[1] = old.r[3].m128_f32[1];
-						vp1ViewMatrix.r[3].m128_f32[2] = old.r[3].m128_f32[2];
+						mainCamera.r[3].m128_f32[0] = old.r[3].m128_f32[0];
+						mainCamera.r[3].m128_f32[1] = old.r[3].m128_f32[1];
+						mainCamera.r[3].m128_f32[2] = old.r[3].m128_f32[2];
 					}
 				}
+				if (testSceneVp == 0)
+					testSceneViewMatrix = mainCamera;
+				else
+					spaceSceneViewMatrix = mainCamera;
 			}
 
 			// Set up initial constant buffer values
 			ConstantBuffer cb1;
 			cb1.time = XMFLOAT4(t, t, t, 1.0f);
-			cb1.mView = XMMatrixTranspose(XMMatrixInverse(nullptr,vp1ViewMatrix));
+			cb1.mView = XMMatrixTranspose(XMMatrixInverse(nullptr,testSceneViewMatrix));
 			cb1.mProjection = XMMatrixTranspose(vp1ProjectionMatrix);
 			// Dir light 1
 			cb1.dirLights[0].col = XMFLOAT4(0.6f, 0.6f, 0.6f, 1.0f);
@@ -1090,7 +1117,7 @@ void LetsDrawSomeStuff::Render()
 			myContext->RSSetViewports(1, &viewPorts[spaceSceneVp]);
 
 			// Set up constant buffer for the small viewport
-			cb1.mView = XMMatrixTranspose(XMMatrixInverse(nullptr, vp2ViewMatrix));
+			cb1.mView = XMMatrixTranspose(XMMatrixInverse(nullptr, spaceSceneViewMatrix));
 			cb1.mProjection = XMMatrixTranspose(vp2ProjectionMatrix);
 
 			// Drawing the special cube
