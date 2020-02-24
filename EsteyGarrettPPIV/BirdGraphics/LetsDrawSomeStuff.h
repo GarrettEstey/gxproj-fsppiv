@@ -137,6 +137,8 @@ class LetsDrawSomeStuff
 	void BasicDrawIndexed(unsigned int index, ConstantBuffer cb, D3D_PRIMITIVE_TOPOLOGY topology, ID3D11VertexShader* vShader, ID3D11PixelShader* pShader, ID3D11GeometryShader* gShader);
 	void BasicDraw(unsigned int index, ConstantBuffer cb, D3D_PRIMITIVE_TOPOLOGY topology, ID3D11VertexShader* vShader, ID3D11PixelShader* pShader, ID3D11GeometryShader* gShader);
 	void LoadMesh(const char* meshFileName, Mesh& mesh);
+	void DrawTestScene(ConstantBuffer& cb);
+	void DrawSpaceScene(ConstantBuffer& cb);
 
 public:
 	// Init
@@ -559,7 +561,7 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 				hr = CreateDDSTextureFromFile(myDevice, L"./Assets/Textures/oceanSkybox.dds", nullptr, &meshes[index].textureRV);
 			}
 
-			// Test Scene Skybox Cube Buffers
+			// Space Scene Skybox Cube Buffers
 			{
 				// Find the mesh in the vector with the correct name
 				unsigned int index = 0;
@@ -1059,196 +1061,19 @@ spaceSceneVp = 1;
 				XMStoreFloat4(&cb1.pointLights[1].pos, vLightDir);
 			}
 
-			// Draw skyboxes for both scenes, so that the Z-Buffer is not fucked up
-			{
-				float skyboxScale = 575.0f;
-				// Skybox for test viewport
-				{
-					// Set the proper viewport
-					myContext->RSSetViewports(1, &viewPorts[testSceneVp]);
-					// Find the test scene skybox cube
-					FindMesh("TestSkyCube", meshIndex);
-					// Set that cube's location to the location of the camera
-					meshes[meshIndex].mWorld = XMMatrixMultiply(XMMatrixIdentity(), XMMatrixScaling(skyboxScale, skyboxScale, skyboxScale));
-					meshes[meshIndex].mWorld.r[3].m128_f32[0] = testSceneViewMatrix.r[3].m128_f32[0];
-					meshes[meshIndex].mWorld.r[3].m128_f32[1] = testSceneViewMatrix.r[3].m128_f32[1];
-					meshes[meshIndex].mWorld.r[3].m128_f32[2] = testSceneViewMatrix.r[3].m128_f32[2];
-					// Set vertex buffer in the context
-					UINT stride = sizeof(Vertex);
-					UINT offset = 0;
-					myContext->IASetVertexBuffers(0, 1, &meshes[meshIndex].vertexBuffer, &stride, &offset);
-
-					// Set index buffer
-					myContext->IASetIndexBuffer(meshes[meshIndex].indexBuffer, DXGI_FORMAT_R32_UINT, 0);
-
-					// Set primitive topology
-					myContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-					// Update constant buffer
-					cb1.mWorld = XMMatrixTranspose(meshes[meshIndex].mWorld);
-					// Send updated constant buffer
-					myContext->UpdateSubresource(myConstantBuffer, 0, nullptr, &cb1, 0, 0);
-
-					// Setup shaders
-					myContext->VSSetShader(vsDefault, nullptr, 0);
-					myContext->VSSetConstantBuffers(0, 1, &myConstantBuffer);
-					myContext->PSSetShader(psSkyBox, nullptr, 0);
-					myContext->PSSetConstantBuffers(0, 1, &myConstantBuffer);
-					myContext->PSSetShaderResources(1, 1, &meshes[meshIndex].textureRV);
-					myContext->PSSetSamplers(0, 1, &mySamplerLinear);
-
-					// Draw indexed object
-					myContext->DrawIndexed((UINT)meshes[meshIndex].indicesList.size(), 0, 0);
-				}
-				
-				// Skybox for space viewport
-				{
-					cb1.mView = XMMatrixTranspose(XMMatrixInverse(nullptr, spaceSceneViewMatrix));
-					cb1.mProjection = XMMatrixTranspose(vp2ProjectionMatrix);
-
-					// Set the proper viewport
-					myContext->RSSetViewports(1, &viewPorts[spaceSceneVp]);
-					// Find the space scene skybox cube
-					FindMesh("SpaceSkyCube", meshIndex);
-					// Set that cube's location to the location of the camera
-					meshes[meshIndex].mWorld = XMMatrixMultiply(XMMatrixIdentity(), XMMatrixScaling(skyboxScale, skyboxScale, skyboxScale));
-					meshes[meshIndex].mWorld.r[3].m128_f32[0] = spaceSceneViewMatrix.r[3].m128_f32[0];
-					meshes[meshIndex].mWorld.r[3].m128_f32[1] = spaceSceneViewMatrix.r[3].m128_f32[1];
-					meshes[meshIndex].mWorld.r[3].m128_f32[2] = spaceSceneViewMatrix.r[3].m128_f32[2];
-					// Set vertex buffer in the context
-					UINT stride = sizeof(Vertex);
-					UINT offset = 0;
-					myContext->IASetVertexBuffers(0, 1, &meshes[meshIndex].vertexBuffer, &stride, &offset);
-
-					// Set index buffer
-					myContext->IASetIndexBuffer(meshes[meshIndex].indexBuffer, DXGI_FORMAT_R32_UINT, 0);
-
-					// Set primitive topology
-					myContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-					// Update constant buffer
-					cb1.mWorld = XMMatrixTranspose(meshes[meshIndex].mWorld);
-					// Send updated constant buffer
-					myContext->UpdateSubresource(myConstantBuffer, 0, nullptr, &cb1, 0, 0);
-
-					// Setup shaders
-					myContext->VSSetShader(vsDefault, nullptr, 0);
-					myContext->VSSetConstantBuffers(0, 1, &myConstantBuffer);
-					myContext->PSSetShader(psSkyBox, nullptr, 0);
-					myContext->PSSetConstantBuffers(0, 1, &myConstantBuffer);
-					myContext->PSSetShaderResources(1, 1, &meshes[meshIndex].textureRV);
-					myContext->PSSetSamplers(0, 1, &mySamplerLinear);
-
-					// Draw indexed object
-					myContext->DrawIndexed((UINT)meshes[meshIndex].indicesList.size(), 0, 0);
-				}
-
-				// Clear Z buffer
-				//myContext->ClearDepthStencilView(myDepthStencilView, D3D11_CLEAR_DEPTH, 1, 0);
-			}
-
-			// Reset matrices back to test scene matrices
-			cb1.mView = XMMatrixTranspose(XMMatrixInverse(nullptr, testSceneViewMatrix));
-			cb1.mProjection = XMMatrixTranspose(vp1ProjectionMatrix);
-
 			// Set the proper viewport
-			myContext->RSSetViewports(1, &viewPorts[testSceneVp]);
-
-			// Drawing the grid
+			myContext->RSSetViewports(1, &viewPorts[0]);
+			if (testSceneVp == 0)
 			{
-				FindMesh("Grid", meshIndex);
-				cb1.solidColor = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-				BasicDraw(meshIndex, cb1, D3D11_PRIMITIVE_TOPOLOGY_LINELIST, vsWaves, psSolidColor, nullptr);
+				DrawTestScene(cb1);
+				myContext->RSSetViewports(1, &viewPorts[1]);
+				DrawSpaceScene(cb1);
 			}
-
-			// Drawing Lanterns
+			else
 			{
-				FindMesh("Lantern", meshIndex);
-				// Lantern 1
-				XMMATRIX mLight = XMMatrixTranslationFromVector(5.0f * XMLoadFloat4(&cb1.pointLights[0].pos));
-				meshes[meshIndex].mWorld = XMMatrixMultiply(mLight, XMMatrixScaling(0.2f, 0.2f, 0.2f));
-				cb1.solidColor = cb1.pointLights[0].col;
-				BasicDrawIndexed(meshIndex, cb1, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, vsDefault, psSolidColor, nullptr);
-				// Lantern 2
-				mLight = XMMatrixTranslationFromVector(5.0f * XMLoadFloat4(&cb1.pointLights[1].pos));
-				meshes[meshIndex].mWorld = XMMatrixMultiply(mLight, XMMatrixScaling(0.2f, 0.2f, 0.2f));
-				cb1.solidColor = cb1.pointLights[1].col;
-				BasicDrawIndexed(meshIndex, cb1, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, vsDefault, psSolidColor, nullptr);
-			}
-
-			// Drawing the bed
-			{
-				FindMesh("Bed", meshIndex);
-				BasicDrawIndexed(meshIndex, cb1, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, vsDefault, psDefault, nullptr);
-			}
-
-			// Drawing the chest
-			{
-				FindMesh("Chest", meshIndex);
-				meshes[meshIndex].mWorld = XMMatrixTranslation(0.0f, 0.0f, 6.0f);
-				BasicDrawIndexed(meshIndex, cb1, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, vsDefault, psDefault, nullptr);
-			}
-
-			// Drawing the special cube
-			{
-				FindMesh("Cube", meshIndex);
-				meshes[meshIndex].mWorld = XMMatrixMultiply(XMMatrixScaling(0.1f, 0.1f, 0.1f), XMMatrixRotationY(t));
-				meshes[meshIndex].mWorld = XMMatrixMultiply(meshes[meshIndex].mWorld, XMMatrixTranslation(-7.0f, 0.0f, sinf(t * 1.337) * 5.0f));
-				BasicDrawIndexed(meshIndex, cb1, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, vsDefault, psCustomWaves, nullptr);
-			}
-
-			// Drawing special cube instances
-			{
-				FindMesh("Cube", meshIndex);
-				// Set up the vertex buffers. We have 2 streams:
-				// Stream 1 contains per-primitive vertices defining the cubes.
-				// Stream 2 contains the per-instance data for scale, position and orientation
-				UINT Strides[] = { sizeof(Vertex), sizeof(InstanceData) };
-				UINT Offsets[] = { 0, 0 };
-				ID3D11Buffer* Buffers[] = {meshes[meshIndex].vertexBuffer, cubeInstanceBuffer };
-				myContext->IASetVertexBuffers(0, _countof(Strides), Buffers, Strides, Offsets);
-
-				myContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-				myContext->IASetIndexBuffer(meshes[meshIndex].indexBuffer, DXGI_FORMAT_R32_UINT, 0);
-
-				myContext->VSSetShader(vsInstancing, nullptr, 0);
-				myContext->VSSetConstantBuffers(0, 1, &myConstantBuffer);
-				myContext->PSSetShader(psCustomWaves, nullptr, 0);
-				myContext->PSSetConstantBuffers(0, 1, &myConstantBuffer);
-				myContext->PSSetShaderResources(0, 1, &meshes[meshIndex].textureRV);
-				myContext->PSSetSamplers(0, 1, &mySamplerLinear);
-				myContext->GSSetShader(nullptr, nullptr, 0);
-				myContext->GSSetConstantBuffers(0, 1, &myConstantBuffer);
-
-				myContext->DrawIndexedInstanced(meshes[meshIndex].indicesList.size(), INSTANCECOUNT, 0, 0, 0);
-			}
-
-			// Drawing the point grid as squares using the geometry shader
-			{
-				FindMesh("PointGrid", meshIndex);
-				cb1.solidColor = XMFLOAT4(1.0f, 0.7f, 0.0f, 1.0f);
-				// If the geometry shader is enabled, call draw with the geo shader
-				if (testGeoShader)
-					BasicDraw(meshIndex, cb1, D3D11_PRIMITIVE_TOPOLOGY_POINTLIST, vsDefault, psSolidColor, gsTest);
-				// Otherwise, call it without
-				else
-					BasicDraw(meshIndex, cb1, D3D11_PRIMITIVE_TOPOLOGY_POINTLIST, vsDefault, psSolidColor, nullptr);
-			}
-
-			// Small viewport
-			
-			myContext->RSSetViewports(1, &viewPorts[spaceSceneVp]);
-
-			// Set up constant buffer for the small viewport
-			cb1.mView = XMMatrixTranspose(XMMatrixInverse(nullptr, spaceSceneViewMatrix));
-			cb1.mProjection = XMMatrixTranspose(vp2ProjectionMatrix);
-
-			// Drawing the special cube
-			{
-				FindMesh("Cube", meshIndex);
-				meshes[meshIndex].mWorld = XMMatrixMultiply(XMMatrixScaling(0.1f, 0.1f, 0.1f), XMMatrixRotationY(t));
-				BasicDrawIndexed(meshIndex, cb1, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, vsDefault, psCustomWaves, nullptr);
+				DrawSpaceScene(cb1);
+				myContext->RSSetViewports(1, &viewPorts[1]);
+				DrawTestScene(cb1);
 			}
 
 			// Present Backbuffer using Swapchain object
@@ -1381,4 +1206,211 @@ void LetsDrawSomeStuff::BasicDraw(unsigned int index, ConstantBuffer cb, D3D_PRI
 
 	// Draw indexed object
 	myContext->Draw((UINT)meshes[index].vertexList.size(), 0);
+}
+
+void LetsDrawSomeStuff::DrawTestScene(ConstantBuffer& cb1)
+{
+	// Set matrices to test scene matrices
+	cb1.mView = XMMatrixTranspose(XMMatrixInverse(nullptr, testSceneViewMatrix));
+	cb1.mProjection = XMMatrixTranspose(vp1ProjectionMatrix);
+
+	unsigned int meshIndex = 0;
+
+	// Draw skybox
+	{
+		float skyboxScale = 1.0f;
+		// Find the test scene skybox cube
+		FindMesh("TestSkyCube", meshIndex);
+		// Set that cube's location to the location of the camera
+		meshes[meshIndex].mWorld = XMMatrixMultiply(XMMatrixIdentity(), XMMatrixScaling(skyboxScale, skyboxScale, skyboxScale));
+		meshes[meshIndex].mWorld.r[3].m128_f32[0] = testSceneViewMatrix.r[3].m128_f32[0];
+		meshes[meshIndex].mWorld.r[3].m128_f32[1] = testSceneViewMatrix.r[3].m128_f32[1];
+		meshes[meshIndex].mWorld.r[3].m128_f32[2] = testSceneViewMatrix.r[3].m128_f32[2];
+		// Set vertex buffer in the context
+		UINT stride = sizeof(Vertex);
+		UINT offset = 0;
+		myContext->IASetVertexBuffers(0, 1, &meshes[meshIndex].vertexBuffer, &stride, &offset);
+
+		// Set index buffer
+		myContext->IASetIndexBuffer(meshes[meshIndex].indexBuffer, DXGI_FORMAT_R32_UINT, 0);
+
+		// Set primitive topology
+		myContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+		// Update constant buffer
+		cb1.mWorld = XMMatrixTranspose(meshes[meshIndex].mWorld);
+		// Send updated constant buffer
+		myContext->UpdateSubresource(myConstantBuffer, 0, nullptr, &cb1, 0, 0);
+
+		// Setup shaders
+		myContext->VSSetShader(vsDefault, nullptr, 0);
+		myContext->VSSetConstantBuffers(0, 1, &myConstantBuffer);
+		myContext->PSSetShader(psSkyBox, nullptr, 0);
+		myContext->PSSetConstantBuffers(0, 1, &myConstantBuffer);
+		myContext->PSSetShaderResources(1, 1, &meshes[meshIndex].textureRV);
+		myContext->PSSetSamplers(0, 1, &mySamplerLinear);
+		myContext->GSSetShader(nullptr, nullptr, 0);
+		myContext->GSSetConstantBuffers(0, 1, &myConstantBuffer);
+
+		// Draw indexed object
+		myContext->DrawIndexed((UINT)meshes[meshIndex].indicesList.size(), 0, 0);
+
+		ID3D11DepthStencilView* myDepthStencilView = nullptr;
+		// Grab the Z Buffer if one was requested
+		if (G_SUCCESS(mySurface->GetDepthStencilView((void**)&myDepthStencilView)))
+		{
+			myContext->ClearDepthStencilView(myDepthStencilView, D3D11_CLEAR_DEPTH, 1, 0); // clear it to Z exponential Far.
+			myDepthStencilView->Release();
+		}
+	}
+
+	// Drawing the grid
+	{
+		FindMesh("Grid", meshIndex);
+		cb1.solidColor = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+		BasicDraw(meshIndex, cb1, D3D11_PRIMITIVE_TOPOLOGY_LINELIST, vsWaves, psSolidColor, nullptr);
+	}
+
+	// Drawing Lanterns
+	{
+		FindMesh("Lantern", meshIndex);
+		// Lantern 1
+		XMMATRIX mLight = XMMatrixTranslationFromVector(5.0f * XMLoadFloat4(&cb1.pointLights[0].pos));
+		meshes[meshIndex].mWorld = XMMatrixMultiply(mLight, XMMatrixScaling(0.2f, 0.2f, 0.2f));
+		cb1.solidColor = cb1.pointLights[0].col;
+		BasicDrawIndexed(meshIndex, cb1, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, vsDefault, psSolidColor, nullptr);
+		// Lantern 2
+		mLight = XMMatrixTranslationFromVector(5.0f * XMLoadFloat4(&cb1.pointLights[1].pos));
+		meshes[meshIndex].mWorld = XMMatrixMultiply(mLight, XMMatrixScaling(0.2f, 0.2f, 0.2f));
+		cb1.solidColor = cb1.pointLights[1].col;
+		BasicDrawIndexed(meshIndex, cb1, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, vsDefault, psSolidColor, nullptr);
+	}
+
+	// Drawing the bed
+	{
+		FindMesh("Bed", meshIndex);
+		BasicDrawIndexed(meshIndex, cb1, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, vsDefault, psDefault, nullptr);
+	}
+
+	// Drawing the chest
+	{
+		FindMesh("Chest", meshIndex);
+		meshes[meshIndex].mWorld = XMMatrixTranslation(0.0f, 0.0f, 6.0f);
+		BasicDrawIndexed(meshIndex, cb1, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, vsDefault, psDefault, nullptr);
+	}
+
+	// Drawing the special cube
+	{
+		FindMesh("Cube", meshIndex);
+		meshes[meshIndex].mWorld = XMMatrixMultiply(XMMatrixScaling(0.1f, 0.1f, 0.1f), XMMatrixRotationY(cb1.time.x));
+		meshes[meshIndex].mWorld = XMMatrixMultiply(meshes[meshIndex].mWorld, XMMatrixTranslation(-7.0f, 0.0f, sinf(cb1.time.x * 1.337) * 5.0f));
+		BasicDrawIndexed(meshIndex, cb1, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, vsDefault, psCustomWaves, nullptr);
+	}
+
+	// Drawing special cube instances
+	{
+		FindMesh("Cube", meshIndex);
+		// Set up the vertex buffers. We have 2 streams:
+		// Stream 1 contains per-primitive vertices defining the cubes.
+		// Stream 2 contains the per-instance data for scale, position and orientation
+		UINT Strides[] = { sizeof(Vertex), sizeof(InstanceData) };
+		UINT Offsets[] = { 0, 0 };
+		ID3D11Buffer* Buffers[] = { meshes[meshIndex].vertexBuffer, cubeInstanceBuffer };
+		myContext->IASetVertexBuffers(0, _countof(Strides), Buffers, Strides, Offsets);
+
+		myContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+		myContext->IASetIndexBuffer(meshes[meshIndex].indexBuffer, DXGI_FORMAT_R32_UINT, 0);
+
+		myContext->VSSetShader(vsInstancing, nullptr, 0);
+		myContext->VSSetConstantBuffers(0, 1, &myConstantBuffer);
+		myContext->PSSetShader(psCustomWaves, nullptr, 0);
+		myContext->PSSetConstantBuffers(0, 1, &myConstantBuffer);
+		myContext->PSSetShaderResources(0, 1, &meshes[meshIndex].textureRV);
+		myContext->PSSetSamplers(0, 1, &mySamplerLinear);
+		myContext->GSSetShader(nullptr, nullptr, 0);
+		myContext->GSSetConstantBuffers(0, 1, &myConstantBuffer);
+
+		myContext->DrawIndexedInstanced(meshes[meshIndex].indicesList.size(), INSTANCECOUNT, 0, 0, 0);
+	}
+
+	// Drawing the point grid as squares using the geometry shader
+	{
+		FindMesh("PointGrid", meshIndex);
+		cb1.solidColor = XMFLOAT4(1.0f, 0.7f, 0.0f, 1.0f);
+		// If the geometry shader is enabled, call draw with the geo shader
+		if (testGeoShader)
+			BasicDraw(meshIndex, cb1, D3D11_PRIMITIVE_TOPOLOGY_POINTLIST, vsDefault, psSolidColor, gsTest);
+		// Otherwise, call it without
+		else
+			BasicDraw(meshIndex, cb1, D3D11_PRIMITIVE_TOPOLOGY_POINTLIST, vsDefault, psSolidColor, nullptr);
+	}
+}
+
+void LetsDrawSomeStuff::DrawSpaceScene(ConstantBuffer& cb1)
+{
+	// Set matrices to space scene matrices
+	cb1.mView = XMMatrixTranspose(XMMatrixInverse(nullptr, spaceSceneViewMatrix));
+	cb1.mProjection = XMMatrixTranspose(vp2ProjectionMatrix);
+
+	unsigned int meshIndex = 0;
+	// Skybox for space viewport
+	{
+		float skyboxScale = 1.0f;
+		cb1.mView = XMMatrixTranspose(XMMatrixInverse(nullptr, spaceSceneViewMatrix));
+		cb1.mProjection = XMMatrixTranspose(vp2ProjectionMatrix);
+
+		// Set the proper viewport
+		myContext->RSSetViewports(1, &viewPorts[spaceSceneVp]);
+		// Find the space scene skybox cube
+		FindMesh("SpaceSkyCube", meshIndex);
+		// Set that cube's location to the location of the camera
+		meshes[meshIndex].mWorld = XMMatrixMultiply(XMMatrixIdentity(), XMMatrixScaling(skyboxScale, skyboxScale, skyboxScale));
+		meshes[meshIndex].mWorld.r[3].m128_f32[0] = spaceSceneViewMatrix.r[3].m128_f32[0];
+		meshes[meshIndex].mWorld.r[3].m128_f32[1] = spaceSceneViewMatrix.r[3].m128_f32[1];
+		meshes[meshIndex].mWorld.r[3].m128_f32[2] = spaceSceneViewMatrix.r[3].m128_f32[2];
+		// Set vertex buffer in the context
+		UINT stride = sizeof(Vertex);
+		UINT offset = 0;
+		myContext->IASetVertexBuffers(0, 1, &meshes[meshIndex].vertexBuffer, &stride, &offset);
+
+		// Set index buffer
+		myContext->IASetIndexBuffer(meshes[meshIndex].indexBuffer, DXGI_FORMAT_R32_UINT, 0);
+
+		// Set primitive topology
+		myContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+		// Update constant buffer
+		cb1.mWorld = XMMatrixTranspose(meshes[meshIndex].mWorld);
+		// Send updated constant buffer
+		myContext->UpdateSubresource(myConstantBuffer, 0, nullptr, &cb1, 0, 0);
+
+		// Setup shaders
+		myContext->VSSetShader(vsDefault, nullptr, 0);
+		myContext->VSSetConstantBuffers(0, 1, &myConstantBuffer);
+		myContext->PSSetShader(psSkyBox, nullptr, 0);
+		myContext->PSSetConstantBuffers(0, 1, &myConstantBuffer);
+		myContext->PSSetShaderResources(1, 1, &meshes[meshIndex].textureRV);
+		myContext->PSSetSamplers(0, 1, &mySamplerLinear); 
+		myContext->GSSetShader(nullptr, nullptr, 0);
+		myContext->GSSetConstantBuffers(0, 1, &myConstantBuffer);
+
+		// Draw indexed object
+		myContext->DrawIndexed((UINT)meshes[meshIndex].indicesList.size(), 0, 0);
+
+		ID3D11DepthStencilView* myDepthStencilView = nullptr;
+		// Grab the Z Buffer if one was requested
+		if (G_SUCCESS(mySurface->GetDepthStencilView((void**)&myDepthStencilView)))
+		{
+			myContext->ClearDepthStencilView(myDepthStencilView, D3D11_CLEAR_DEPTH, 1, 0); // clear it to Z exponential Far.
+			myDepthStencilView->Release();
+		}
+	}
+
+	// Drawing the special cube
+	{
+		FindMesh("Cube", meshIndex);
+		meshes[meshIndex].mWorld = XMMatrixMultiply(XMMatrixScaling(0.1f, 0.1f, 0.1f), XMMatrixRotationY(cb1.time.x));
+		BasicDrawIndexed(meshIndex, cb1, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, vsDefault, psCustomWaves, nullptr);
+	}
 }
