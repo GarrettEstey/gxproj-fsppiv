@@ -19,6 +19,14 @@ struct PointLight
     float4 rad;
 };
 
+struct SpotLight
+{
+    float4 col;
+    float4 pos;
+    float4 dir;
+    float4 rad;
+};
+
 cbuffer ConstantBuffer : register(b0)
 {
     matrix World;
@@ -26,6 +34,7 @@ cbuffer ConstantBuffer : register(b0)
     matrix Projection;
     DirectionalLight dirLights[DIRLIGHTCOUNT];
     PointLight pointLights[POINTLIGHTCOUNT];
+    SpotLight spotLights[SPOTLIGHTCOUNT];
     float4 solidColor;
     float2 time;
     float2 useDirLights;

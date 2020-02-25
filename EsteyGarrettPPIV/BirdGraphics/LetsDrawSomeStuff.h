@@ -65,6 +65,14 @@ using namespace std;
 		XMFLOAT4 rad;
 	};
 
+	struct SpotLight
+	{
+		XMFLOAT4 col;
+		XMFLOAT4 pos;
+		XMFLOAT4 dir;
+		XMFLOAT4 coneRatio;
+	};
+
 	struct ConstantBuffer
 	{
 		XMMATRIX mWorld;
@@ -72,6 +80,7 @@ using namespace std;
 		XMMATRIX mProjection;
 		DirectionalLight dirLights[DIRLIGHTCOUNT];
 		PointLight pointLights[POINTLIGHTCOUNT];
+		SpotLight spotLights[SPOTLIGHTCOUNT];
 		XMFLOAT4 solidColor;
 		XMFLOAT2 time;
 		XMFLOAT2 useDirLights;
@@ -94,6 +103,7 @@ using namespace std;
 
 	// Meshes
 	vector<Mesh>	meshes;
+	vector<ID3D11ShaderResourceView*>	planetTextures;
 
 	// Control variables
 	POINT			oldCursorPos;
@@ -132,7 +142,6 @@ class LetsDrawSomeStuff
 	ID3D11PixelShader*					psSkyBox = nullptr;
 	ID3D11GeometryShader*				gsTest = nullptr;
 	D3D11_VIEWPORT*						viewPorts = nullptr;
-
 
 	// Function definitions
 	void FindMesh(const char* meshName, unsigned int& index);
@@ -228,6 +237,13 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 				myMesh.name = "Chest";
 				// Load a mesh
 				LoadMesh("./Assets/Meshes/chest.mesh", myMesh);
+				// Push this mesh into the meshes vector
+				meshes.push_back(myMesh);
+
+				// Set mesh name
+				myMesh.name = "Planet";
+				// Load a mesh
+				LoadMesh("./Assets/Meshes/planet.mesh", myMesh);
 				// Push this mesh into the meshes vector
 				meshes.push_back(myMesh);
 			}
@@ -675,6 +691,70 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 
 			}
 
+			// Planet Buffers
+			{
+				// Find the mesh in the vector with the correct name
+				unsigned int index = 0;
+				FindMesh("Planet", index);
+
+				// Vertex Buffer
+
+				// This creates an empty buffer description object
+				D3D11_BUFFER_DESC bd = {};
+				// The usage flag informs how the data will be used. IMMUTABLE means that this is a constant, never changing buffer
+				// You can also use DEFAULT, which allows the GPU to alter this data, but not the CPU
+				// There is also DYNAMIC, meaning it can be changed at any time by the CPU or GPU
+				bd.Usage = D3D11_USAGE_IMMUTABLE;
+				// The bindFlags inform what the buffer will be used to store. In this case, verts
+				bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+				// CPUAccessFlags inform what kind of acess the CPU has to this buffer. None. 0. This is immutable
+				bd.CPUAccessFlags = 0;
+				// ByteWidth is just informing how large the buffer is
+				bd.ByteWidth = sizeof(Vertex) * meshes[index].vertexList.size();
+
+				// Create the buffer on the device
+				D3D11_SUBRESOURCE_DATA InitData = {};
+				InitData.pSysMem = meshes[index].vertexList.data();
+				hr = myDevice->CreateBuffer(&bd, &InitData, &meshes[index].vertexBuffer);
+
+
+				// Index Buffer
+
+				// Create index buffer
+				bd.Usage = D3D11_USAGE_DEFAULT;
+				bd.ByteWidth = sizeof(int) * meshes[index].indicesList.size();
+				bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
+				bd.CPUAccessFlags = 0;
+				InitData.pSysMem = meshes[index].indicesList.data();
+				hr = myDevice->CreateBuffer(&bd, &InitData, &meshes[index].indexBuffer);
+
+				// Resource Views for all planet textures, to be set before drawing
+
+				ID3D11ShaderResourceView* tempRV = nullptr;
+				hr = CreateDDSTextureFromFile(myDevice, L"./Assets/Textures/sunmap.dds", nullptr, &tempRV);
+				planetTextures.push_back(tempRV);
+				hr = CreateDDSTextureFromFile(myDevice, L"./Assets/Textures/mercurymap.dds", nullptr, &tempRV);
+				planetTextures.push_back(tempRV);
+				hr = CreateDDSTextureFromFile(myDevice, L"./Assets/Textures/venusmap.dds", nullptr, &tempRV);
+				planetTextures.push_back(tempRV);
+				hr = CreateDDSTextureFromFile(myDevice, L"./Assets/Textures/earthmap.dds", nullptr, &tempRV);
+				planetTextures.push_back(tempRV);
+				hr = CreateDDSTextureFromFile(myDevice, L"./Assets/Textures/moonmap.dds", nullptr, &tempRV);
+				planetTextures.push_back(tempRV);
+				hr = CreateDDSTextureFromFile(myDevice, L"./Assets/Textures/marsmap.dds", nullptr, &tempRV);
+				planetTextures.push_back(tempRV);
+				hr = CreateDDSTextureFromFile(myDevice, L"./Assets/Textures/jupitermap.dds", nullptr, &tempRV);
+				planetTextures.push_back(tempRV);
+				hr = CreateDDSTextureFromFile(myDevice, L"./Assets/Textures/saturnmap.dds", nullptr, &tempRV);
+				planetTextures.push_back(tempRV);
+				hr = CreateDDSTextureFromFile(myDevice, L"./Assets/Textures/uranusmap.dds", nullptr, &tempRV);
+				planetTextures.push_back(tempRV);
+				hr = CreateDDSTextureFromFile(myDevice, L"./Assets/Textures/neptunemap.dds", nullptr, &tempRV);
+				planetTextures.push_back(tempRV);
+				hr = CreateDDSTextureFromFile(myDevice, L"./Assets/Textures/plutomap.dds", nullptr, &tempRV);
+				planetTextures.push_back(tempRV);
+			}
+
 			#pragma endregion
 
 			#pragma region Vertex Shaders
@@ -712,8 +792,6 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 				sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
 				hr = myDevice->CreateSamplerState(&sampDesc, &mySamplerLinear);
 			}
-			
-
 
 			// Input Layout
 			{
@@ -845,6 +923,17 @@ LetsDrawSomeStuff::~LetsDrawSomeStuff()
 		mySamplerLinear->Release();
 	
 	delete[] viewPorts;
+	planetTextures[0]->Release();
+	planetTextures[1]->Release();
+	planetTextures[2]->Release();
+	planetTextures[3]->Release();
+	planetTextures[4]->Release();
+	planetTextures[5]->Release();
+	planetTextures[6]->Release();
+	planetTextures[7]->Release();
+	planetTextures[8]->Release();
+	planetTextures[9]->Release();
+	planetTextures[10]->Release();
 
 	if (mySurface) // Free Gateware Interface
 	{
@@ -1032,10 +1121,6 @@ spaceSceneVp = 1;
 			cb1.time = XMFLOAT2(t, t);
 			cb1.mView = XMMatrixTranspose(XMMatrixInverse(nullptr,testSceneViewMatrix));
 			cb1.mProjection = XMMatrixTranspose(vp1ProjectionMatrix);
-			// Establish how many lights to render in this scene
-			cb1.useDirLights = XMFLOAT2(0.0f, 0.0f);
-			cb1.usePointLights = XMFLOAT2(0.0f, 2.0f);
-			cb1.useSpotLights = XMFLOAT2(0.0f, 0.0f);
 			// Dir light 1
 			cb1.dirLights[0].col = XMFLOAT4(0.6f, 0.6f, 0.6f, 1.0f);
 			cb1.dirLights[0].dir = XMFLOAT4(-1.0f, 0.75f, 0.0f, 1.0f);
@@ -1047,21 +1132,6 @@ spaceSceneVp = 1;
 			cb1.pointLights[1].col = XMFLOAT4(0.0f, 0.7f, 0.0f, 1.0f);
 			cb1.pointLights[1].pos = XMFLOAT4(0.0f, 2.5f, 0.0f, 1.0f);
 			cb1.pointLights[1].rad = XMFLOAT4(10.0f, 0.0f, 0.0f, 1.0f);
-
-			// Move lights
-			{
-				// Rotate the yellow point light around the origin
-				XMMATRIX mModify = XMMatrixRotationY(-2.0f * t);
-				XMVECTOR vLightDir = XMLoadFloat4(&cb1.pointLights[0].pos);
-				vLightDir = XMVector3Transform(vLightDir, mModify);
-				XMStoreFloat4(&cb1.pointLights[0].pos, vLightDir);
-
-				// Move the blue point light back and forth
-				mModify = XMMatrixTranslation(0.0f, 0.0f, sinf(t) * 10.0f);
-				vLightDir = XMLoadFloat4(&cb1.pointLights[1].pos);
-				vLightDir = XMVector3Transform(vLightDir, mModify);
-				XMStoreFloat4(&cb1.pointLights[1].pos, vLightDir);
-			}
 
 			// Set the proper viewport
 			myContext->RSSetViewports(1, &viewPorts[0]);
@@ -1215,6 +1285,29 @@ void LetsDrawSomeStuff::DrawTestScene(ConstantBuffer& cb1)
 	// Set matrices to test scene matrices
 	cb1.mView = XMMatrixTranspose(XMMatrixInverse(nullptr, testSceneViewMatrix));
 	cb1.mProjection = XMMatrixTranspose(vp1ProjectionMatrix);
+
+	// Move lights
+	{
+		cb1.dirLights[0].col = XMFLOAT4(0.6f, 0.6f, 0.6f, 1.0f);
+		cb1.dirLights[0].dir = XMFLOAT4(-1.0f, 0.75f, 0.0f, 1.0f);
+
+		// Establish how many lights to render in this scene
+		cb1.useDirLights = XMFLOAT2(1.0f, 0.0f);
+		cb1.usePointLights = XMFLOAT2(0.0f, 2.0f);
+		cb1.useSpotLights = XMFLOAT2(0.0f, 0.0f);
+
+		// Rotate the yellow point light around the origin
+		XMMATRIX mModify = XMMatrixRotationY(-2.0f * cb1.time.x);
+		XMVECTOR vLightDir = XMLoadFloat4(&cb1.pointLights[0].pos);
+		vLightDir = XMVector3Transform(vLightDir, mModify);
+		XMStoreFloat4(&cb1.pointLights[0].pos, vLightDir);
+
+		// Move the blue point light back and forth
+		mModify = XMMatrixTranslation(0.0f, 0.0f, sinf(cb1.time.x) * 10.0f);
+		vLightDir = XMLoadFloat4(&cb1.pointLights[1].pos);
+		vLightDir = XMVector3Transform(vLightDir, mModify);
+		XMStoreFloat4(&cb1.pointLights[1].pos, vLightDir);
+	}
 
 	unsigned int meshIndex = 0;
 
@@ -1409,11 +1502,146 @@ void LetsDrawSomeStuff::DrawSpaceScene(ConstantBuffer& cb1)
 		}
 	}
 
-	// Drawing the special cube
+	cb1.dirLights[0].col = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	cb1.dirLights[0].dir = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+
+	cb1.useDirLights = XMFLOAT2(1.0f, 0.0f);
+	cb1.usePointLights = XMFLOAT2(0.0f, 0.0f);
+	cb1.useSpotLights = XMFLOAT2(0.0f, 0.0f);
+
+	// Lots of matrix math
+	// The sun just has to rotate
+	XMMATRIX sunWorld = XMMatrixMultiply(XMMatrixScaling(0.2f, 0.2f, 0.2f), XMMatrixRotationY(cb1.time.x));
+	// Mercury just has to rotate and orbit the sun
+	XMMATRIX mercuryWorld = XMMatrixMultiply(XMMatrixScaling(0.01f, 0.01f, 0.01f), XMMatrixRotationY(cb1.time.x * 0.5f));
+	mercuryWorld = XMMatrixMultiply(mercuryWorld, XMMatrixTranslation(4.0f, 0.0f, 0.0f));
+	mercuryWorld = XMMatrixMultiply(mercuryWorld, XMMatrixRotationY(0.0f - (cb1.time.x * 1.07f)));
+	// Venus
+	XMMATRIX venusWorld = XMMatrixMultiply(XMMatrixScaling(0.02f, 0.02f, 0.02f), XMMatrixRotationY(cb1.time.x * 0.5f));
+	venusWorld = XMMatrixMultiply(venusWorld, XMMatrixTranslation(6.0f, 0.0f, 0.0f));
+	venusWorld = XMMatrixMultiply(venusWorld, XMMatrixRotationY(0.0f - (cb1.time.x * 0.78f)));
+	// Earth
+	XMMATRIX earthWorld = XMMatrixMultiply(XMMatrixScaling(0.04f, 0.04f, 0.04f), XMMatrixRotationY(cb1.time.x));
+	earthWorld = XMMatrixMultiply(earthWorld, XMMatrixTranslation(8.0f, 0.0f, 0.0f));
+	earthWorld = XMMatrixMultiply(earthWorld, XMMatrixRotationY(0.0f - (cb1.time.x * 0.66f)));
+	// Moon is very special
+	XMMATRIX moonWorld = XMMatrixMultiply(XMMatrixScaling(0.005f, 0.005f, 0.005f), XMMatrixRotationY(cb1.time.x * 0.5f));
+	moonWorld.r[3].m128_f32[0] = earthWorld.r[3].m128_f32[0] + (sinf(cb1.time.x) * 0.5f);
+	moonWorld.r[3].m128_f32[1] = earthWorld.r[3].m128_f32[1] + (sinf(cb1.time.x) * 0.5f);
+	moonWorld.r[3].m128_f32[2] = earthWorld.r[3].m128_f32[2] + (cosf(cb1.time.x) * 0.5f);
+	// Mars
+	XMMATRIX marsWorld = XMMatrixMultiply(XMMatrixScaling(0.03f, 0.03f, 0.03f), XMMatrixRotationY(cb1.time.x * 0.5f));
+	marsWorld = XMMatrixMultiply(marsWorld, XMMatrixTranslation(11.0f, 0.0f, 0.0f));
+	marsWorld = XMMatrixMultiply(marsWorld, XMMatrixRotationY(0.0f - (cb1.time.x * 0.53f)));
+	// Jupiter
+	XMMATRIX jupiterWorld = XMMatrixMultiply(XMMatrixScaling(0.1f, 0.1f, 0.1f), XMMatrixRotationY(cb1.time.x * 2.0f));
+	jupiterWorld = XMMatrixMultiply(jupiterWorld, XMMatrixTranslation(15.0f, 0.0f, 0.0f));
+	jupiterWorld = XMMatrixMultiply(jupiterWorld, XMMatrixRotationY(0.0f - (cb1.time.x * 0.29f)));
+	// Saturn
+	XMMATRIX saturnWorld = XMMatrixMultiply(XMMatrixScaling(0.08f, 0.08f, 0.08f), XMMatrixRotationY(cb1.time.x * 2.0f));
+	saturnWorld = XMMatrixMultiply(saturnWorld, XMMatrixTranslation(19.0f, 0.0f, 0.0f));
+	saturnWorld = XMMatrixMultiply(saturnWorld, XMMatrixRotationY(0.0f - (cb1.time.x * 0.21f)));
+	// Uranus
+	XMMATRIX uranusWorld = XMMatrixMultiply(XMMatrixScaling(0.065f, 0.065f, 0.065f), XMMatrixRotationY(cb1.time.x * 3.0f));
+	uranusWorld = XMMatrixMultiply(uranusWorld, XMMatrixTranslation(23.0f, 0.0f, 0.0f));
+	uranusWorld = XMMatrixMultiply(uranusWorld, XMMatrixRotationY(0.0f - (cb1.time.x * 0.15f)));
+	// Neptune
+	XMMATRIX neptuneWorld = XMMatrixMultiply(XMMatrixScaling(0.06f, 0.06f, 0.06f), XMMatrixRotationY(cb1.time.x * 3.0f));
+	neptuneWorld = XMMatrixMultiply(neptuneWorld, XMMatrixTranslation(27.0f, 0.0f, 0.0f));
+	neptuneWorld = XMMatrixMultiply(uranusWorld, XMMatrixRotationY(0.0f - (cb1.time.x * 0.12f)));
+	// Pluto
+	XMMATRIX plutoWorld = XMMatrixMultiply(XMMatrixScaling(0.01f, 0.01f, 0.01f), XMMatrixRotationY(cb1.time.x));
+	plutoWorld = XMMatrixMultiply(plutoWorld, XMMatrixTranslation(31.0f, 0.0f, 0.0f));
+	plutoWorld = XMMatrixMultiply(plutoWorld, XMMatrixRotationY(0.0f - (cb1.time.x * 0.1f)));
+
+	// Drawing the sun
 	{
-		FindMesh("Cube", meshIndex);
-		meshes[meshIndex].mWorld = XMMatrixMultiply(XMMatrixScaling(0.1f, 0.1f, 0.1f), XMMatrixRotationY(cb1.time.x));
-		BasicDrawIndexed(meshIndex, cb1, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, vsDefault, psCustomWaves, nullptr);
+		FindMesh("Planet", meshIndex);
+		meshes[meshIndex].textureRV = planetTextures[0];
+		meshes[meshIndex].mWorld = sunWorld;
+		BasicDrawIndexed(meshIndex, cb1, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, vsDefault, psDefault, nullptr);
+	}
+
+	// Drawing Mercury
+	{
+		FindMesh("Planet", meshIndex);
+		meshes[meshIndex].textureRV = planetTextures[1];
+		meshes[meshIndex].mWorld = mercuryWorld;
+		BasicDrawIndexed(meshIndex, cb1, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, vsDefault, psDefault, nullptr);
+	}
+
+	// Drawing Venus
+	{
+		FindMesh("Planet", meshIndex);
+		meshes[meshIndex].textureRV = planetTextures[2];
+		meshes[meshIndex].mWorld = venusWorld;
+		BasicDrawIndexed(meshIndex, cb1, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, vsDefault, psDefault, nullptr);
+	}
+
+	// Drawing Earth
+	{
+		FindMesh("Planet", meshIndex);
+		meshes[meshIndex].textureRV = planetTextures[3];
+		meshes[meshIndex].mWorld = earthWorld;
+		BasicDrawIndexed(meshIndex, cb1, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, vsDefault, psDefault, nullptr);
+	}
+
+	// Drawing Earth's moon
+	{
+		FindMesh("Planet", meshIndex);
+		meshes[meshIndex].textureRV = planetTextures[4];
+		meshes[meshIndex].mWorld = moonWorld;
+		BasicDrawIndexed(meshIndex, cb1, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, vsDefault, psDefault, nullptr);
+	}
+
+	// Drawing mars
+	{
+		FindMesh("Planet", meshIndex);
+		meshes[meshIndex].textureRV = planetTextures[5];
+		meshes[meshIndex].mWorld = marsWorld;
+		BasicDrawIndexed(meshIndex, cb1, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, vsDefault, psDefault, nullptr);
+	}
+
+	// Drawing jupiter
+	{
+		FindMesh("Planet", meshIndex);
+		meshes[meshIndex].textureRV = planetTextures[6];
+		meshes[meshIndex].mWorld = jupiterWorld;
+		BasicDrawIndexed(meshIndex, cb1, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, vsDefault, psDefault, nullptr);
+	}
+
+	// Drawing saturn
+	{
+		FindMesh("Planet", meshIndex);
+		meshes[meshIndex].textureRV = planetTextures[7];
+		meshes[meshIndex].mWorld = saturnWorld;
+		BasicDrawIndexed(meshIndex, cb1, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, vsDefault, psDefault, nullptr);
+	}
+
+	// Drawing uranus
+	{
+		FindMesh("Planet", meshIndex);
+		meshes[meshIndex].textureRV = planetTextures[8];
+		meshes[meshIndex].mWorld = uranusWorld;
+		BasicDrawIndexed(meshIndex, cb1, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, vsDefault, psDefault, nullptr);
+	}
+
+	// Drawing neptune
+	{
+		FindMesh("Planet", meshIndex);
+		meshes[meshIndex].textureRV = planetTextures[9];
+		meshes[meshIndex].mWorld = neptuneWorld;
+		BasicDrawIndexed(meshIndex, cb1, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, vsDefault, psDefault, nullptr);
+	}
+
+	// Drawing pluto
+	{
+		FindMesh("Planet", meshIndex);
+		meshes[meshIndex].textureRV = planetTextures[10];
+		meshes[meshIndex].mWorld = plutoWorld;
+		BasicDrawIndexed(meshIndex, cb1, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, vsDefault, psDefault, nullptr);
+		// After drawing pluto, make sure to clear the planet mesh texture RV to nullptr
+		meshes[meshIndex].textureRV = nullptr;
 	}
 }
 
