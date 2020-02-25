@@ -102,6 +102,8 @@ using namespace std;
 	bool			testGeoShader = false;
 	unsigned int	testSceneVp = 0;
 	unsigned int	spaceSceneVp = 1;
+	float			moveSpeed = 0.005f;
+	float			lookSpeed = 0.003f;
 //};
 
 //using namespace DrawingStuff;
@@ -147,6 +149,8 @@ public:
 	~LetsDrawSomeStuff();
 	// Draw
 	void Render();
+	// Window resized
+	void WindowResized(GW::SYSTEM::GWindow* attatchPoint);
 };
 
 // Init
@@ -600,7 +604,7 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 
 				// Resource View
 
-				hr = CreateDDSTextureFromFile(myDevice, L"./Assets/Textures/oceanSkybox.dds", nullptr, &meshes[index].textureRV);
+				hr = CreateDDSTextureFromFile(myDevice, L"./Assets/Textures/spaceSkybox.dds", nullptr, &meshes[index].textureRV);
 			}
 
 			// Chest Buffers
@@ -898,8 +902,6 @@ void LetsDrawSomeStuff::Render()
 				float xDiff = oldCursorPos.x - cursorPos.x;
 				float yDiff = oldCursorPos.y - cursorPos.y;
 				oldCursorPos = cursorPos;
-				float moveSpeed = 0.005f;
-				float lookSpeed = 0.003f;
 				// Input delay to prevent asyncKeyState from spamming inputs. Primitive, but it works
 				if (inputDelay > 0)
 				{
@@ -1413,4 +1415,35 @@ void LetsDrawSomeStuff::DrawSpaceScene(ConstantBuffer& cb1)
 		meshes[meshIndex].mWorld = XMMatrixMultiply(XMMatrixScaling(0.1f, 0.1f, 0.1f), XMMatrixRotationY(cb1.time.x));
 		BasicDrawIndexed(meshIndex, cb1, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, vsDefault, psCustomWaves, nullptr);
 	}
+}
+
+void LetsDrawSomeStuff::WindowResized(GW::SYSTEM::GWindow* attatchPoint)
+{
+	// Large viewport
+
+	// Initialize the projection matrix
+	UINT height;
+	UINT width;
+	attatchPoint->GetClientHeight(height);
+	attatchPoint->GetClientWidth(width);
+	vp1ProjectionMatrix = XMMatrixPerspectiveFovLH(XM_PIDIV4, width / (FLOAT)height, 0.01f, 100.0f);
+
+	// Viewport structure constructed by topLeftX, topLeftY, width, height, minDepth, maxDepth
+	D3D11_VIEWPORT largeViewport = { 0.0f, 0.0f, width, height, 0.5f, 1.0f };
+
+
+	// Small viewport
+
+	float vp2Height = height / 4.0f;
+	float vp2Width = width / 4.0f;
+
+	// Viewport structure constructed by topLeftX, topLeftY, width, height, minDepth, maxDepth
+	D3D11_VIEWPORT smallViewport = { 5.0f, 5.0f, vp2Width, vp2Height, 0.0f, 0.5f };
+
+	// Initialize the projection matrix
+	vp2ProjectionMatrix = XMMatrixPerspectiveFovLH(XM_PIDIV4, vp2Width / vp2Height, 0.01f, 100.0f);;
+
+	viewPorts = new D3D11_VIEWPORT[2];
+	viewPorts[0] = largeViewport;
+	viewPorts[1] = smallViewport;
 }
