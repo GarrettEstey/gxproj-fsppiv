@@ -1080,7 +1080,7 @@ spaceSceneVp = 1;
 					mainCamera = spaceSceneViewMatrix;
 
 				// Planet lookat controls
-				if (true)
+				if (inputDelay == 0)
 				{
 					if (GetAsyncKeyState('1'))
 					{
@@ -1088,6 +1088,7 @@ spaceSceneVp = 1;
 							planetLookAt = 1;
 						else
 							planetLookAt = 0;
+						inputDelay = 250;
 					}
 					if (GetAsyncKeyState('2'))
 					{
@@ -1095,6 +1096,7 @@ spaceSceneVp = 1;
 							planetLookAt = 2;
 						else
 							planetLookAt = 0;
+						inputDelay = 250;
 					}
 					if (GetAsyncKeyState('3'))
 					{
@@ -1102,6 +1104,7 @@ spaceSceneVp = 1;
 							planetLookAt = 3;
 						else
 							planetLookAt = 0;
+						inputDelay = 250;
 					}
 					if (GetAsyncKeyState('4'))
 					{
@@ -1109,6 +1112,7 @@ spaceSceneVp = 1;
 							planetLookAt = 4;
 						else
 							planetLookAt = 0;
+						inputDelay = 250;
 					}
 					if (GetAsyncKeyState('5'))
 					{
@@ -1116,6 +1120,7 @@ spaceSceneVp = 1;
 							planetLookAt = 5;
 						else
 							planetLookAt = 0;
+						inputDelay = 250;
 					}
 					if (GetAsyncKeyState('6'))
 					{
@@ -1123,6 +1128,7 @@ spaceSceneVp = 1;
 							planetLookAt = 6;
 						else
 							planetLookAt = 0;
+						inputDelay = 250;
 					}
 					if (GetAsyncKeyState('7'))
 					{
@@ -1130,6 +1136,7 @@ spaceSceneVp = 1;
 							planetLookAt = 7;
 						else
 							planetLookAt = 0;
+						inputDelay = 250;
 					}
 					if (GetAsyncKeyState('8'))
 					{
@@ -1137,6 +1144,7 @@ spaceSceneVp = 1;
 							planetLookAt = 8;
 						else
 							planetLookAt = 0;
+						inputDelay = 250;
 					}
 					if (GetAsyncKeyState('9'))
 					{
@@ -1144,6 +1152,7 @@ spaceSceneVp = 1;
 							planetLookAt = 9;
 						else
 							planetLookAt = 0;
+						inputDelay = 250;
 					}
 					if (GetAsyncKeyState('0'))
 					{
@@ -1151,6 +1160,7 @@ spaceSceneVp = 1;
 							planetLookAt = 10;
 						else
 							planetLookAt = 0;
+						inputDelay = 250;
 					}
 				}
 
@@ -1678,12 +1688,37 @@ void LetsDrawSomeStuff::DrawSpaceScene(ConstantBuffer& cb1)
 	plutoWorld = XMMatrixMultiply(plutoWorld, XMMatrixTranslation(31.0f, 0.0f, 0.0f));
 	plutoWorld = XMMatrixMultiply(plutoWorld, XMMatrixRotationY(0.0f - (cb1.time.x * 0.1f)));
 
-	XMVECTOR up;
-	up.m128_f32[1] = 1.0f;
 	switch (planetLookAt)
 	{
 	case 1:
-		//cb1.mView = XMMatrixLookAtLH(spaceSceneViewMatrix.r[3], mercuryWorld.r[3], up);
+		cb1.mView = XMMatrixTranspose(XMMatrixLookAtLH(spaceSceneViewMatrix.r[3], mercuryWorld.r[3], {0,1,0}));
+		break;
+	case 2:
+		cb1.mView = XMMatrixTranspose(XMMatrixLookAtLH(spaceSceneViewMatrix.r[3], venusWorld.r[3], { 0,1,0 }));
+		break;
+	case 3:
+		cb1.mView = XMMatrixTranspose(XMMatrixLookAtLH(spaceSceneViewMatrix.r[3], earthWorld.r[3], { 0,1,0 }));
+		break;
+	case 4:
+		cb1.mView = XMMatrixTranspose(XMMatrixLookAtLH(spaceSceneViewMatrix.r[3], moonWorld.r[3], { 0,1,0 }));
+		break;
+	case 5:
+		cb1.mView = XMMatrixTranspose(XMMatrixLookAtLH(spaceSceneViewMatrix.r[3], marsWorld.r[3], { 0,1,0 }));
+		break;
+	case 6:
+		cb1.mView = XMMatrixTranspose(XMMatrixLookAtLH(spaceSceneViewMatrix.r[3], jupiterWorld.r[3], { 0,1,0 }));
+		break;
+	case 7:
+		cb1.mView = XMMatrixTranspose(XMMatrixLookAtLH(spaceSceneViewMatrix.r[3], saturnWorld.r[3], { 0,1,0 }));
+		break;
+	case 8:
+		cb1.mView = XMMatrixTranspose(XMMatrixLookAtLH(spaceSceneViewMatrix.r[3], uranusWorld.r[3], { 0,1,0 }));
+		break;
+	case 9:
+		cb1.mView = XMMatrixTranspose(XMMatrixLookAtLH(spaceSceneViewMatrix.r[3], neptuneWorld.r[3], { 0,1,0 }));
+		break;
+	case 10:
+		cb1.mView = XMMatrixTranspose(XMMatrixLookAtLH(spaceSceneViewMatrix.r[3], plutoWorld.r[3], { 0,1,0 }));
 		break;
 	default:
 		break;
