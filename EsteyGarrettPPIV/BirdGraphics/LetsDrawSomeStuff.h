@@ -114,6 +114,7 @@ using namespace std;
 	unsigned int	spaceSceneVp = 1;
 	float			moveSpeed = 0.005f;
 	float			lookSpeed = 0.003f;
+	unsigned int	planetLookAt = 0;
 //};
 
 //using namespace DrawingStuff;
@@ -244,6 +245,13 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 				myMesh.name = "Planet";
 				// Load a mesh
 				LoadMesh("./Assets/Meshes/planet.mesh", myMesh);
+				// Push this mesh into the meshes vector
+				meshes.push_back(myMesh);
+
+				// Set mesh name
+				myMesh.name = "Ship";
+				// Load a mesh
+				LoadMesh("./Assets/Meshes/talonShip.mesh", myMesh);
 				// Push this mesh into the meshes vector
 				meshes.push_back(myMesh);
 			}
@@ -755,6 +763,48 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 				planetTextures.push_back(tempRV);
 			}
 
+			// Chest Buffers
+			{
+				// Find the mesh in the vector with the correct name
+				unsigned int index = 0;
+				FindMesh("Ship", index);
+
+				// Vertex Buffer
+
+				// This creates an empty buffer description object
+				D3D11_BUFFER_DESC bd = {};
+				// The usage flag informs how the data will be used. IMMUTABLE means that this is a constant, never changing buffer
+				// You can also use DEFAULT, which allows the GPU to alter this data, but not the CPU
+				// There is also DYNAMIC, meaning it can be changed at any time by the CPU or GPU
+				bd.Usage = D3D11_USAGE_IMMUTABLE;
+				// The bindFlags inform what the buffer will be used to store. In this case, verts
+				bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+				// CPUAccessFlags inform what kind of acess the CPU has to this buffer. None. 0. This is immutable
+				bd.CPUAccessFlags = 0;
+				// ByteWidth is just informing how large the buffer is
+				bd.ByteWidth = sizeof(Vertex) * meshes[index].vertexList.size();
+
+				// Create the buffer on the device
+				D3D11_SUBRESOURCE_DATA InitData = {};
+				InitData.pSysMem = meshes[index].vertexList.data();
+				hr = myDevice->CreateBuffer(&bd, &InitData, &meshes[index].vertexBuffer);
+
+
+				// Index Buffer
+
+				// Create index buffer
+				bd.Usage = D3D11_USAGE_DEFAULT;
+				bd.ByteWidth = sizeof(int) * meshes[index].indicesList.size();
+				bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
+				bd.CPUAccessFlags = 0;
+				InitData.pSysMem = meshes[index].indicesList.data();
+				hr = myDevice->CreateBuffer(&bd, &InitData, &meshes[index].indexBuffer);
+
+				// Resource View
+
+				hr = CreateDDSTextureFromFile(myDevice, L"./Assets/Textures/talonShip.dds", nullptr, &meshes[index].textureRV);
+			}
+
 			#pragma endregion
 
 			#pragma region Vertex Shaders
@@ -854,9 +904,8 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 				D3D11_VIEWPORT smallViewport = { 5.0f, 5.0f, vp2Width, vp2Height, 0.0f, 0.5f };
 				
 				// Initialize the view matrix
-				transl = XMMatrixTranslation(0.0f, 3.0f, -10.0f);
-				//testSceneViewMatrix = XMMatrixLookAtLH(Eye, At, Up);
-				spaceSceneViewMatrix = XMMatrixMultiply(XMMatrixIdentity(), transl);
+				spaceSceneViewMatrix = XMMatrixMultiply(XMMatrixIdentity(), XMMatrixRotationX(0.7f));
+				spaceSceneViewMatrix = XMMatrixMultiply(spaceSceneViewMatrix, XMMatrixTranslation(0.0f, 25.0f, -25.0f));
 
 				// Initialize the projection matrix
 				vp2ProjectionMatrix = XMMatrixPerspectiveFovLH(XM_PIDIV4, vp2Width / vp2Height, 0.01f, 100.0f);;
@@ -1029,6 +1078,81 @@ spaceSceneVp = 1;
 					mainCamera = testSceneViewMatrix;
 				else
 					mainCamera = spaceSceneViewMatrix;
+
+				// Planet lookat controls
+				if (true)
+				{
+					if (GetAsyncKeyState('1'))
+					{
+						if (planetLookAt != 1)
+							planetLookAt = 1;
+						else
+							planetLookAt = 0;
+					}
+					if (GetAsyncKeyState('2'))
+					{
+						if (planetLookAt != 2)
+							planetLookAt = 2;
+						else
+							planetLookAt = 0;
+					}
+					if (GetAsyncKeyState('3'))
+					{
+						if (planetLookAt != 3)
+							planetLookAt = 3;
+						else
+							planetLookAt = 0;
+					}
+					if (GetAsyncKeyState('4'))
+					{
+						if (planetLookAt != 4)
+							planetLookAt = 4;
+						else
+							planetLookAt = 0;
+					}
+					if (GetAsyncKeyState('5'))
+					{
+						if (planetLookAt != 5)
+							planetLookAt = 5;
+						else
+							planetLookAt = 0;
+					}
+					if (GetAsyncKeyState('6'))
+					{
+						if (planetLookAt != 6)
+							planetLookAt = 6;
+						else
+							planetLookAt = 0;
+					}
+					if (GetAsyncKeyState('7'))
+					{
+						if (planetLookAt != 7)
+							planetLookAt = 7;
+						else
+							planetLookAt = 0;
+					}
+					if (GetAsyncKeyState('8'))
+					{
+						if (planetLookAt != 8)
+							planetLookAt = 8;
+						else
+							planetLookAt = 0;
+					}
+					if (GetAsyncKeyState('9'))
+					{
+						if (planetLookAt != 9)
+							planetLookAt = 9;
+						else
+							planetLookAt = 0;
+					}
+					if (GetAsyncKeyState('0'))
+					{
+						if (planetLookAt != 10)
+							planetLookAt = 10;
+						else
+							planetLookAt = 0;
+					}
+				}
 
 				// Camera controls, so long as the camera is not locked
 				if (!cameraPaused)
@@ -1554,6 +1678,17 @@ void LetsDrawSomeStuff::DrawSpaceScene(ConstantBuffer& cb1)
 	plutoWorld = XMMatrixMultiply(plutoWorld, XMMatrixTranslation(31.0f, 0.0f, 0.0f));
 	plutoWorld = XMMatrixMultiply(plutoWorld, XMMatrixRotationY(0.0f - (cb1.time.x * 0.1f)));
 
+	XMVECTOR up;
+	up.m128_f32[1] = 1.0f;
+	switch (planetLookAt)
+	{
+	case 1:
+		//cb1.mView = XMMatrixLookAtLH(spaceSceneViewMatrix.r[3], mercuryWorld.r[3], up);
+		break;
+	default:
+		break;
+	}
+
 	// Drawing the sun
 	{
 		FindMesh("Planet", meshIndex);
@@ -1642,6 +1777,15 @@ void LetsDrawSomeStuff::DrawSpaceScene(ConstantBuffer& cb1)
 		BasicDrawIndexed(meshIndex, cb1, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, vsDefault, psDefault, nullptr);
 		// After drawing pluto, make sure to clear the planet mesh texture RV to nullptr
 		meshes[meshIndex].textureRV = nullptr;
+	}
+
+	// Drawing the ship
+	{
+		FindMesh("Ship", meshIndex);
+		meshes[meshIndex].mWorld = XMMatrixMultiply(XMMatrixIdentity(), XMMatrixRotationY(cb1.time.x * -0.0025f));
+		meshes[meshIndex].mWorld = XMMatrixMultiply(meshes[meshIndex].mWorld, XMMatrixTranslation(9.5f, 0.0f, 0.0f));
+		meshes[meshIndex].mWorld = XMMatrixMultiply(meshes[meshIndex].mWorld, XMMatrixRotationY(0.0f - (cb1.time.x * 0.25f)));
+		BasicDrawIndexed(meshIndex, cb1, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, vsDefault, psDefault, nullptr);
 	}
 }
 
