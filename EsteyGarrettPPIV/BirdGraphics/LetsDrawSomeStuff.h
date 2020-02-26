@@ -70,7 +70,7 @@ using namespace std;
 		XMFLOAT4 col;
 		XMFLOAT4 pos;
 		XMFLOAT4 dir;
-		XMFLOAT4 coneRatio;
+		XMFLOAT4 rat;
 	};
 
 	struct ConstantBuffer
@@ -512,6 +512,10 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 				bd.CPUAccessFlags = 0;
 				InitData.pSysMem = meshes[index].indicesList.data();
 				hr = myDevice->CreateBuffer(&bd, &InitData, &meshes[index].indexBuffer);
+
+				// Resource View
+
+				hr = CreateDDSTextureFromFile(myDevice, L"./Assets/Textures/Crate.dds", nullptr, &meshes[index].textureRV);
 			}
 
 			// Cube instance buffer
@@ -1428,8 +1432,24 @@ void LetsDrawSomeStuff::DrawTestScene(ConstantBuffer& cb1)
 		// Establish how many lights to render in this scene
 		cb1.useDirLights = XMFLOAT2(1.0f, 0.0f);
 		cb1.usePointLights = XMFLOAT2(0.0f, 2.0f);
-		cb1.useSpotLights = XMFLOAT2(0.0f, 0.0f);
+		cb1.useSpotLights = XMFLOAT2(0.0f, 3.0f);
 
+		// Spot light 1
+		cb1.spotLights[0].col = XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f);
+		cb1.spotLights[0].pos = XMFLOAT4(-42.0f, 10.0f, 0.0f, 1.0f);
+		cb1.spotLights[0].dir = XMFLOAT4(0.0f, -1.0f, 0.0f, 1.0f);
+		cb1.spotLights[0].rat = XMFLOAT4(fabsf(sinf(cb1.time.x)), 0.5f, 0.5f, 1.0f);
+		// Spot light 2
+		cb1.spotLights[1].col = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+		cb1.spotLights[1].pos = XMFLOAT4(-42.0f, 10.0f, 0.0f, 1.0f);
+		cb1.spotLights[1].dir = XMFLOAT4(0.0f, -fabsf(sinf(cb1.time.x)), cosf(cb1.time.x), 1.0f);
+		cb1.spotLights[1].rat = XMFLOAT4(0.9f, 0.5f, 0.5f, 1.0f);
+		// Spot light 3
+		cb1.spotLights[2].col = XMFLOAT4(0.0f, 1.0f, 0.0f, 1.0f);
+		cb1.spotLights[2].pos = XMFLOAT4((cosf(cb1.time.x * 1.7f) * 12.0f) - 42.0f, 10.0f, (cosf(cb1.time.x * 1.7f) * 12.0f), 1.0f);
+		cb1.spotLights[2].dir = XMFLOAT4(0.0f, -1.0f, 0.0f, 1.0f);
+		cb1.spotLights[2].rat = XMFLOAT4(0.9f, 0.5f, 0.5f, 1.0f);
+		
 		// Rotate the yellow point light around the origin
 		XMMATRIX mModify = XMMatrixRotationY(-2.0f * cb1.time.x);
 		XMVECTOR vLightDir = XMLoadFloat4(&cb1.pointLights[0].pos);
@@ -1573,6 +1593,14 @@ void LetsDrawSomeStuff::DrawTestScene(ConstantBuffer& cb1)
 		// Otherwise, call it without
 		else
 			BasicDraw(meshIndex, cb1, D3D11_PRIMITIVE_TOPOLOGY_POINTLIST, vsDefault, psSolidColor, nullptr);
+	}
+
+	// Drawing a beeg cube
+	{
+		FindMesh("Cube", meshIndex);
+		meshes[meshIndex].mWorld = XMMatrixMultiply(XMMatrixIdentity(), XMMatrixScaling(2.5f, 0.4f, 2.5f));
+		meshes[meshIndex].mWorld = XMMatrixMultiply(meshes[meshIndex].mWorld, XMMatrixTranslation(-42.0f, -10.0f, 0.0f));
+		BasicDrawIndexed(meshIndex, cb1, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, vsDefault, psDefault, nullptr);
 	}
 }
 

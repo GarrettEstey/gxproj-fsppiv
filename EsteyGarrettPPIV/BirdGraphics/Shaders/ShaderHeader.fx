@@ -24,7 +24,7 @@ struct SpotLight
     float4 col;
     float4 pos;
     float4 dir;
-    float4 rad;
+    float4 rat;
 };
 
 cbuffer ConstantBuffer : register(b0)

@@ -8,20 +8,20 @@ float4 main(PS_INPUT input) : SV_TARGET
     // DIRECTIONAL LIGHTS
     {
         // First, the main, ambient light of the scene
-        if(useDirLights.x != 0)
+        if (useDirLights.x != 0)
         {
             float lightRatio = saturate(dot(dirLights[0].dir.xyz, input.norm));
             lightRatio = saturate(lightRatio + 0.4f);
             finalColor += lightRatio * dirLights[0].col;
         }
         for (int i = (int) useDirLights.x; i < (int) useDirLights.y; i++)
-		{
+        {
             // Then all the other lights
             finalColor += saturate(dot(dirLights[i].dir.xyz, input.norm) * dirLights[i].col);
-		}
+        }
 	}
     
-    // POINT LIGHTS
+    //POINT LIGHTS
     {
         for (int i = (int) usePointLights.x; i < (int) usePointLights.y; i++)
         {
@@ -38,6 +38,11 @@ float4 main(PS_INPUT input) : SV_TARGET
         for (int i = (int) useSpotLights.x; i < (int) useSpotLights.y; i++)
         {
             float3 lightDir = normalize(spotLights[i].pos.xyz - input.wPos.xyz);
+            float surfaceRatio = saturate(dot(0.0f - lightDir, spotLights[i].dir.xyz));
+            float lightRatio = saturate(dot(lightDir, input.norm));
+            float spotFactor = (surfaceRatio > spotLights[i].rat.x) ? 1.0f : 0.0f;
+            float cAtt = 1.0f - saturate((spotLights[i].rat.y - surfaceRatio) / (spotLights[i].rat.y - spotLights[i].rat.z));
+            finalColor += lightRatio * spotLights[i].col * cAtt * spotFactor;
         }
     }
     
