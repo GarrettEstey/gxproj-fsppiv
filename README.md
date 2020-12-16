@@ -14,5 +14,7 @@ R - Reset the camera
 
 G - Activate/Deactivate the test geometry shader, which will turn the yellow point into two faced quads
 
+C - Change Viewport
+
 Number (Not numpad) keys 0-9 make the camera look at the planets in the space scene.
 (If you're looking for the spaceship, it's orbit is between earth and mars)
